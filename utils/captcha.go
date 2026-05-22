@@ -2,6 +2,8 @@ package utils
 
 import (
 	"encoding/base64"
+	"errors"
+	"image/color"
 	"strings"
 
 	"github.com/mojocn/base64Captcha"
@@ -10,15 +12,19 @@ import (
 // 使用内存存储验证码
 var captchaStore = base64Captcha.DefaultMemStore
 
-// GenerateCaptcha 生成验证码，返回 captchaID 和 base64 编码的 PNG 图片字节
+// 排除易混淆字符：0/O、1/I/L、2/Z、5/S、8/B、G/6、9/Q
+const captchaSource = "ABCDEFHJKMNPRTUVWXY34679"
+
+// GenerateCaptcha 生成验证码，返回 captchaID 和 PNG 图片字节
 func GenerateCaptcha() (string, []byte, error) {
 	driver := &base64Captcha.DriverString{
-		Height:          50,
-		Width:           120,
+		Height:          40,
+		Width:           80,
 		NoiseCount:      0,
-		ShowLineOptions: base64Captcha.OptionShowHollowLine,
+		ShowLineOptions: base64Captcha.OptionShowHollowLine | base64Captcha.OptionShowSineLine,
 		Length:          4,
-		Source:          "0123456789",
+		Source:          captchaSource,
+		BgColor:         &color.RGBA{R: 255, G: 255, B: 255, A: 255},
 		Fonts:           []string{"wqy-microhei.ttc"},
 	}
 
@@ -31,7 +37,7 @@ func GenerateCaptcha() (string, []byte, error) {
 	// b64s 格式: "data:image/png;base64,xxxx"，提取纯 base64 部分并解码为字节
 	parts := strings.SplitN(b64s, ",", 2)
 	if len(parts) != 2 {
-		return "", nil, err
+		return "", nil, errors.New("invalid captcha image format")
 	}
 	imgBytes, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil {
@@ -41,7 +47,11 @@ func GenerateCaptcha() (string, []byte, error) {
 	return id, imgBytes, nil
 }
 
-// VerifyCaptcha 校验验证码（忽略大小写）
+// VerifyCaptcha 校验验证码（忽略大小写，一次性使用）
 func VerifyCaptcha(id, answer string) bool {
-	return captchaStore.Verify(id, strings.ToLower(answer), true)
+	stored := captchaStore.Get(id, true)
+	if stored == "" {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(stored), strings.TrimSpace(answer))
 }

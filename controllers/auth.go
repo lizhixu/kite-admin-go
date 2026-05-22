@@ -16,8 +16,7 @@ type AuthController struct{}
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
-	Captcha  string `json:"captcha"`
-	IsQuick  bool   `json:"isQuick"`
+	Captcha  string `json:"captcha" binding:"required"`
 }
 
 func (ac *AuthController) Login(c *gin.Context) {
@@ -31,25 +30,23 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// 非一键体验模式需校验验证码
-	if !req.IsQuick {
-		captchaID, err := c.Cookie("captcha_id")
-		if err != nil || captchaID == "" {
-			c.JSON(http.StatusOK, models.Response{
-				Code:      10003,
-				Message:   "验证码已过期，请刷新",
-				OriginUrl: c.Request.URL.Path,
-			})
-			return
-		}
-		if !utils.VerifyCaptcha(captchaID, strings.TrimSpace(req.Captcha)) {
-			c.JSON(http.StatusOK, models.Response{
-				Code:      10003,
-				Message:   "验证码错误",
-				OriginUrl: c.Request.URL.Path,
-			})
-			return
-		}
+	// 校验验证码
+	captchaID, err := c.Cookie("captcha_id")
+	if err != nil || captchaID == "" {
+		c.JSON(http.StatusOK, models.Response{
+			Code:      10003,
+			Message:   "验证码已过期，请刷新",
+			OriginUrl: c.Request.URL.Path,
+		})
+		return
+	}
+	if !utils.VerifyCaptcha(captchaID, strings.TrimSpace(req.Captcha)) {
+		c.JSON(http.StatusOK, models.Response{
+			Code:      10003,
+			Message:   "验证码错误",
+			OriginUrl: c.Request.URL.Path,
+		})
+		return
 	}
 
 	var user models.User
