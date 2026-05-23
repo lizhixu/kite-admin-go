@@ -20,8 +20,8 @@ func GenerateCaptcha() (string, []byte, error) {
 	driver := &base64Captcha.DriverString{
 		Height:          40,
 		Width:           80,
-		NoiseCount:      0,
-		ShowLineOptions: base64Captcha.OptionShowHollowLine | base64Captcha.OptionShowSineLine,
+		NoiseCount:      3,
+		ShowLineOptions: base64Captcha.OptionShowSineLine,
 		Length:          4,
 		Source:          captchaSource,
 		BgColor:         &color.RGBA{R: 255, G: 255, B: 255, A: 255},
