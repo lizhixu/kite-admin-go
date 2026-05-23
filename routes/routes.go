@@ -15,6 +15,8 @@ func SetupRoutes(r *gin.Engine) {
 	roleCtrl := &controllers.RoleController{}
 	permCtrl := &controllers.PermissionController{}
 	syslogCtrl := &controllers.SysLogController{}
+	taskCtrl := &controllers.TaskController{}
+	mediaCtrl := &controllers.MediaController{}
 
 	// 认证相关路由（无需认证）
 	auth := r.Group("/auth")
@@ -37,6 +39,7 @@ func SetupRoutes(r *gin.Engine) {
 		api.GET("/user", userCtrl.GetList)
 		api.POST("/user", middleware.RequirePermission("AddUser"), userCtrl.Create)
 		api.DELETE("/user/:id", middleware.RequirePermission("DeleteUser"), userCtrl.Delete)
+		api.PATCH("/user/profile/:id", userCtrl.UpdateProfile)
 		api.PATCH("/user/:id", middleware.RequirePermission("EditUser"), userCtrl.Update)
 		api.PATCH("/user/password/reset/:id", middleware.RequirePermission("ResetPassword"), userCtrl.ResetPassword)
 
@@ -60,5 +63,40 @@ func SetupRoutes(r *gin.Engine) {
 
 		// 日志相关
 		api.GET("/syslog/list", syslogCtrl.GetLogs)
+
+		// 定时任务
+		api.GET("/task/page", taskCtrl.GetPage)
+		api.GET("/task/funcs", taskCtrl.GetFuncs)
+		api.GET("/task/stats", taskCtrl.Stats)
+		api.GET("/task/preview-next", taskCtrl.PreviewNext)
+		api.POST("/task", middleware.RequirePermission("AddTask"), taskCtrl.Create)
+		api.PATCH("/task/:id", middleware.RequirePermission("EditTask"), taskCtrl.Update)
+		api.DELETE("/task/:id", middleware.RequirePermission("DeleteTask"), taskCtrl.Delete)
+		api.PATCH("/task/:id/toggle", middleware.RequirePermission("EditTask"), taskCtrl.Toggle)
+		api.POST("/task/:id/run", middleware.RequirePermission("RunTask"), taskCtrl.Run)
+		api.POST("/task/bulk/delete", middleware.RequirePermission("DeleteTask"), taskCtrl.BulkDelete)
+		api.POST("/task/bulk/toggle", middleware.RequirePermission("EditTask"), taskCtrl.BulkToggle)
+		api.GET("/task/log/page", taskCtrl.GetLogs)
+
+		// 媒体库
+		api.POST("/media/upload", middleware.RequirePermission("UploadMedia"), mediaCtrl.Upload)
+		api.GET("/media/page", mediaCtrl.GetPage)
+		api.DELETE("/media/:id", middleware.RequirePermission("DeleteMedia"), mediaCtrl.Delete)
+		api.POST("/media/bulk/delete", middleware.RequirePermission("DeleteMedia"), mediaCtrl.BulkDelete)
+		api.POST("/media/move", middleware.RequirePermission("UploadMedia"), mediaCtrl.MoveMedia)
+
+		// 媒体文件夹
+		api.GET("/media/folder/tree", mediaCtrl.ListFolders)
+		api.POST("/media/folder", middleware.RequirePermission("ManageFolder"), mediaCtrl.CreateFolder)
+		api.PATCH("/media/folder/:id", middleware.RequirePermission("ManageFolder"), mediaCtrl.RenameFolder)
+		api.DELETE("/media/folder/:id", middleware.RequirePermission("ManageFolder"), mediaCtrl.DeleteFolder)
+
+		// 存储配置
+		api.GET("/storage/config", mediaCtrl.ListConfigs)
+		api.POST("/storage/config", middleware.RequirePermission("ManageStorage"), mediaCtrl.CreateConfig)
+		api.PATCH("/storage/config/:id", middleware.RequirePermission("ManageStorage"), mediaCtrl.UpdateConfig)
+		api.DELETE("/storage/config/:id", middleware.RequirePermission("ManageStorage"), mediaCtrl.DeleteConfig)
+		api.PATCH("/storage/config/:id/default", middleware.RequirePermission("ManageStorage"), mediaCtrl.SetDefault)
+		api.POST("/storage/config/:id/test", middleware.RequirePermission("ManageStorage"), mediaCtrl.TestConfig)
 	}
 }
