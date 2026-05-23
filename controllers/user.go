@@ -318,6 +318,108 @@ func (uc *UserController) Update(c *gin.Context) {
 	})
 }
 
+// UpdateProfile 用户更新自己的个人资料（昵称、头像、性别、地址、邮箱）
+// 仅允许更新本人，禁止修改用户名、启用状态、角色等敏感字段
+func (uc *UserController) UpdateProfile(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	currentUserID := c.GetUint("userID")
+	if uint(id) != currentUserID {
+		c.JSON(http.StatusForbidden, models.Response{
+			Code:      403,
+			Message:   "无权修改他人资料",
+			OriginUrl: c.Request.URL.Path,
+		})
+		return
+	}
+
+	var req struct {
+		NickName *string `json:"nickName"`
+		Gender   *string `json:"gender"`
+		Avatar   *string `json:"avatar"`
+		Address  *string `json:"address"`
+		Email    *string `json:"email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.Response{
+			Code:      400,
+			Message:   err.Error(),
+			OriginUrl: c.Request.URL.Path,
+		})
+		return
+	}
+
+	var user models.User
+	if err := config.DB.Preload("Profile").First(&user, currentUserID).Error; err != nil {
+		c.JSON(http.StatusNotFound, models.Response{
+			Code:      404,
+			Message:   "User not found",
+			OriginUrl: c.Request.URL.Path,
+		})
+		return
+	}
+
+	if user.Profile != nil {
+		profileUpdates := make(map[string]interface{})
+		if req.NickName != nil {
+			profileUpdates["nick_name"] = *req.NickName
+		}
+		if req.Gender != nil {
+			profileUpdates["gender"] = *req.Gender
+		}
+		if req.Avatar != nil {
+			profileUpdates["avatar"] = *req.Avatar
+		}
+		if req.Address != nil {
+			profileUpdates["address"] = *req.Address
+		}
+		if req.Email != nil {
+			profileUpdates["email"] = *req.Email
+		}
+		if len(profileUpdates) > 0 {
+			if err := config.DB.Model(&user.Profile).Updates(profileUpdates).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, models.Response{
+					Code:      500,
+					Message:   "Failed to update profile",
+					OriginUrl: c.Request.URL.Path,
+				})
+				return
+			}
+		}
+	} else {
+		profile := models.Profile{UserID: user.ID}
+		if req.NickName != nil {
+			profile.NickName = *req.NickName
+		}
+		if req.Gender != nil {
+			profile.Gender = req.Gender
+		}
+		if req.Avatar != nil {
+			profile.Avatar = *req.Avatar
+		}
+		if req.Address != nil {
+			profile.Address = req.Address
+		}
+		if req.Email != nil {
+			profile.Email = req.Email
+		}
+		if err := config.DB.Create(&profile).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, models.Response{
+				Code:      500,
+				Message:   "Failed to create profile",
+				OriginUrl: c.Request.URL.Path,
+			})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, models.Response{
+		Code:      0,
+		Message:   "OK",
+		Data:      true,
+		OriginUrl: c.Request.URL.Path,
+	})
+}
+
 func (uc *UserController) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := config.DB.Delete(&models.User{}, id).Error; err != nil {
