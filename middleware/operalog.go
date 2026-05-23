@@ -46,9 +46,6 @@ func OperationLog() gin.HandlerFunc {
 			bodyBytes, _ := io.ReadAll(c.Request.Body)
 			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 			bodyStr := string(bodyBytes)
-			if len(bodyStr) > 5000 {
-				bodyStr = bodyStr[:5000] + "... (truncated)"
-			}
 			if paramsStr != "" {
 				paramsStr = paramsStr + " | Body: " + bodyStr
 			} else {
@@ -68,9 +65,6 @@ func OperationLog() gin.HandlerFunc {
 		latency := endTime.Sub(startTime).Milliseconds()
 
 		responseStr := w.body.String()
-		if len(responseStr) > 5000 {
-			responseStr = responseStr[:5000] + "... (truncated)"
-		}
 
 		// Extract user from context
 		userIdVal, exists := c.Get("userID")

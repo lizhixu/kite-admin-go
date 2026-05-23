@@ -8,8 +8,8 @@ type SysLog struct {
 	Username   string    `gorm:"type:varchar(50)" json:"username"`
 	Method     string    `gorm:"type:varchar(10)" json:"method"`
 	Path       string    `gorm:"type:varchar(255)" json:"path"`
-	Params     string    `gorm:"type:text" json:"params"`
-	Response   string    `gorm:"type:text" json:"response"`
+	Params     string    `gorm:"type:longtext" json:"params"`
+	Response   string    `gorm:"type:longtext" json:"response"`
 	IP         string    `gorm:"type:varchar(50)" json:"ip"`
 	StatusCode int       `json:"statusCode"`
 	Latency    int64     `json:"latency"` // in milliseconds
