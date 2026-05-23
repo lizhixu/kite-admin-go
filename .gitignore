@@ -21,9 +21,11 @@ server.log
 # IDEs
 .idea/
 .vscode/
+.claude
 *.swp
 *.swo
 
 # OS files
 .DS_Store
 Thumbs.db
+uploads/
