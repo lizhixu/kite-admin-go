@@ -16,6 +16,8 @@ func RegisteredModels() []any {
 		&models.SysLog{},
 		&models.Task{},
 		&models.TaskLog{},
+		&models.Queue{},
+		&models.QueueJob{},
 		&models.Media{},
 		&models.MediaFolder{},
 		&models.StorageConfig{},

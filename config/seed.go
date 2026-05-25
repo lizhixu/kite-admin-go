@@ -161,12 +161,21 @@ func defaultPermissions() []models.Permission {
 		// 个人资料
 		{ID: 8, Name: "个人资料", Code: "UserProfile", Type: "MENU", Path: ptrStr("/profile"), Icon: ptrStr("i-fe:user"), Component: ptrStr("/src/views/profile/index.vue"), Show: ptrBool(false), Enable: ptrBool(true), Order: 99},
 
-		// 定时任务（顶级菜单，与系统管理同级）
-		{ID: 7, Name: "定时任务", Code: "TaskMgt", Type: "MENU", Path: ptrStr("/task/list"), Icon: ptrStr("i-fe:clock"), Component: ptrStr("/src/views/task/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
-		{ID: 22, Name: "新增任务", Code: "AddTask", Type: "BUTTON", ParentID: ptrUint(7), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
-		{ID: 23, Name: "编辑任务", Code: "EditTask", Type: "BUTTON", ParentID: ptrUint(7), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
-		{ID: 24, Name: "删除任务", Code: "DeleteTask", Type: "BUTTON", ParentID: ptrUint(7), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},
-		{ID: 25, Name: "执行任务", Code: "RunTask", Type: "BUTTON", ParentID: ptrUint(7), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
+		// 任务管理（父容器：定时任务 + 队列管理）
+		{ID: 7, Name: "任务管理", Code: "TaskMgt", Type: "MENU", Icon: ptrStr("i-fe:clock"), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
+		// 子菜单：定时任务
+		{ID: 40, Name: "定时任务", Code: "ScheduleTask", Type: "MENU", ParentID: ptrUint(7), Path: ptrStr("/task/schedule"), Icon: ptrStr("i-fe:calendar"), Component: ptrStr("/src/views/task/schedule/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
+		{ID: 22, Name: "新增任务", Code: "AddTask", Type: "BUTTON", ParentID: ptrUint(40), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
+		{ID: 23, Name: "编辑任务", Code: "EditTask", Type: "BUTTON", ParentID: ptrUint(40), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
+		{ID: 24, Name: "删除任务", Code: "DeleteTask", Type: "BUTTON", ParentID: ptrUint(40), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},
+		{ID: 25, Name: "执行任务", Code: "RunTask", Type: "BUTTON", ParentID: ptrUint(40), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
+		// 子菜单：队列管理
+		{ID: 41, Name: "队列管理", Code: "QueueMgt", Type: "MENU", ParentID: ptrUint(7), Path: ptrStr("/task/queue"), Icon: ptrStr("i-fe:layers"), Component: ptrStr("/src/views/task/queue/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
+		{ID: 43, Name: "编辑队列", Code: "EditQueue", Type: "BUTTON", ParentID: ptrUint(41), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
+		{ID: 44, Name: "删除队列", Code: "DeleteQueue", Type: "BUTTON", ParentID: ptrUint(41), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
+		{ID: 45, Name: "投递任务", Code: "AddQueueJob", Type: "BUTTON", ParentID: ptrUint(41), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},
+		{ID: 46, Name: "Kick任务", Code: "KickQueueJob", Type: "BUTTON", ParentID: ptrUint(41), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
+		{ID: 47, Name: "队列详情", Code: "QueueDetail", Type: "MENU", ParentID: ptrUint(41), Path: ptrStr("/task/queue/:id"), Icon: ptrStr("i-fe:info"), Component: ptrStr("/src/views/task/queue/detail.vue"), Show: ptrBool(false), Enable: ptrBool(true), Order: 5},
 
 		// 媒体库（父容器）
 		{ID: 30, Name: "媒体库", Code: "MediaMgt", Type: "MENU", Icon: ptrStr("i-fe:image"), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},

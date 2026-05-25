@@ -3,6 +3,7 @@ package main
 import (
 	"backend/config"
 	"backend/models"
+	"backend/queue"
 	"backend/routes"
 	"backend/scheduler"
 	"log"
@@ -27,6 +28,9 @@ func main() {
 		log.Fatal("scheduler:", err)
 	}
 	defer scheduler.Stop()
+
+	queue.Init()
+	defer queue.Stop()
 
 	r := gin.Default()
 

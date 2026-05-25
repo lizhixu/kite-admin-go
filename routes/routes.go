@@ -16,6 +16,7 @@ func SetupRoutes(r *gin.Engine) {
 	permCtrl := &controllers.PermissionController{}
 	syslogCtrl := &controllers.SysLogController{}
 	taskCtrl := &controllers.TaskController{}
+	queueCtrl := &controllers.QueueController{}
 	mediaCtrl := &controllers.MediaController{}
 
 	// 认证相关路由（无需认证）
@@ -77,6 +78,22 @@ func SetupRoutes(r *gin.Engine) {
 		api.POST("/task/bulk/delete", middleware.RequirePermission("DeleteTask"), taskCtrl.BulkDelete)
 		api.POST("/task/bulk/toggle", middleware.RequirePermission("EditTask"), taskCtrl.BulkToggle)
 		api.GET("/task/log/page", taskCtrl.GetLogs)
+
+		// 队列管理
+		api.GET("/queue/page", queueCtrl.GetPage)
+		api.GET("/queue/stats", queueCtrl.Stats)
+		api.GET("/queue/handlers", queueCtrl.GetHandlers)
+		api.GET("/queue/:id", queueCtrl.GetOne)
+		api.PATCH("/queue/:id", middleware.RequirePermission("EditQueue"), queueCtrl.Update)
+		api.DELETE("/queue/:id", middleware.RequirePermission("DeleteQueue"), queueCtrl.Delete)
+		api.PATCH("/queue/:id/toggle", middleware.RequirePermission("EditQueue"), queueCtrl.Toggle)
+		api.POST("/queue/:id/kick", middleware.RequirePermission("KickQueueJob"), queueCtrl.KickAll)
+		api.GET("/queue/:id/jobs", queueCtrl.GetJobs)
+		api.POST("/queue/:id/job", middleware.RequirePermission("AddQueueJob"), queueCtrl.AddJob)
+		api.POST("/queue/:id/jobs/bulk", middleware.RequirePermission("AddQueueJob"), queueCtrl.BulkAddJobs)
+		api.DELETE("/queue/:id/jobs", middleware.RequirePermission("DeleteQueue"), queueCtrl.ClearJobs)
+		api.POST("/queue/job/:jobId/kick", middleware.RequirePermission("KickQueueJob"), queueCtrl.KickJob)
+		api.DELETE("/queue/job/:jobId", middleware.RequirePermission("DeleteQueue"), queueCtrl.DeleteJob)
 
 		// 媒体库
 		api.POST("/media/upload", middleware.RequirePermission("UploadMedia"), mediaCtrl.Upload)
