@@ -164,9 +164,6 @@ func defaultPermissions() []models.Permission {
 		{ID: 20, Name: "删除用户", Code: "DeleteUser", Type: "BUTTON", ParentID: ptrUint(4), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},
 		{ID: 21, Name: "重置密码", Code: "ResetPassword", Type: "BUTTON", ParentID: ptrUint(4), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
 
-		// 个人资料
-		{ID: 8, Name: "个人资料", Code: "UserProfile", Type: "MENU", Path: ptrStr("/profile"), Icon: ptrStr("i-fe:user"), Component: ptrStr("/src/views/profile/index.vue"), Show: ptrBool(false), Enable: ptrBool(true), Order: 99},
-
 		// 任务管理（父容器：定时任务 + 队列管理）
 		{ID: 7, Name: "任务管理", Code: "TaskMgt", Type: "MENU", Icon: ptrStr("i-fe:clock"), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
 		// 子菜单：定时任务
@@ -201,7 +198,10 @@ func defaultPermissions() []models.Permission {
 		{ID: 52, Name: "发送消息", Code: "SendMessage", Type: "BUTTON", ParentID: ptrUint(51), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
 		{ID: 53, Name: "删除消息", Code: "DeleteMessage", Type: "BUTTON", ParentID: ptrUint(51), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
 		{ID: 54, Name: "邮件配置", Code: "EmailConfigMgt", Type: "MENU", ParentID: ptrUint(50), Path: ptrStr("/message/email-config"), Icon: ptrStr("i-fe:mail"), Component: ptrStr("/src/views/message/email-config.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
+		{ID: 56, Name: "保存配置", Code: "SaveEmailConfig", Type: "BUTTON", ParentID: ptrUint(54), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
+		{ID: 57, Name: "发送测试邮件", Code: "TestEmailConfig", Type: "BUTTON", ParentID: ptrUint(54), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
 		{ID: 55, Name: "邮件模板", Code: "EmailTemplateMgt", Type: "MENU", ParentID: ptrUint(50), Path: ptrStr("/message/email-template"), Icon: ptrStr("i-fe:layout"), Component: ptrStr("/src/views/message/email-template.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},
+		{ID: 58, Name: "保存模板", Code: "SaveEmailTemplate", Type: "BUTTON", ParentID: ptrUint(55), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
 	}
 }
 

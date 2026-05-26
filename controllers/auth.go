@@ -20,8 +20,8 @@ func getClientIP(c *gin.Context) string {
 	return ip
 }
 
-// recordLoginLog 异步记录登录日志
-func recordLoginLog(userID uint, username, ip, userAgent string, success bool, message string) {
+// recordLoginLog 异步记录登录成功日志
+func recordLoginLog(userID uint, username, ip, userAgent string) {
 	// 截断 UserAgent 防止过长
 	if len(userAgent) > 250 {
 		userAgent = userAgent[:250]
@@ -31,8 +31,8 @@ func recordLoginLog(userID uint, username, ip, userAgent string, success bool, m
 		Username:  username,
 		IP:        ip,
 		UserAgent: userAgent,
-		Success:   success,
-		Message:   message,
+		Success:   true,
+		Message:   "登录成功",
 	}
 	go func() {
 		config.DB.Create(&log)
@@ -53,7 +53,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		recordLoginLog(0, req.Username, ip, userAgent, false, "参数错误: "+err.Error())
 		c.JSON(http.StatusBadRequest, models.Response{
 			Code:      400,
 			Message:   err.Error(),
@@ -65,7 +64,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 	// 校验验证码
 	captchaID, err := c.Cookie("captcha_id")
 	if err != nil || captchaID == "" {
-		recordLoginLog(0, req.Username, ip, userAgent, false, "验证码已过期")
 		c.JSON(http.StatusOK, models.Response{
 			Code:      10003,
 			Message:   "验证码已过期，请刷新",
@@ -74,7 +72,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 	if !utils.VerifyCaptcha(captchaID, strings.TrimSpace(req.Captcha)) {
-		recordLoginLog(0, req.Username, ip, userAgent, false, "验证码错误")
 		c.JSON(http.StatusOK, models.Response{
 			Code:      10003,
 			Message:   "验证码错误",
@@ -85,7 +82,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 
 	var user models.User
 	if err := config.DB.Preload("Roles").Preload("Profile").Where("username = ?", req.Username).First(&user).Error; err != nil {
-		recordLoginLog(0, req.Username, ip, userAgent, false, "用户不存在")
 		c.JSON(http.StatusOK, models.Response{
 			Code:      10004,
 			Message:   "账号或密码错误",
@@ -95,7 +91,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 	}
 
 	if !utils.CheckPassword(req.Password, user.Password) {
-		recordLoginLog(user.ID, user.Username, ip, userAgent, false, "密码错误")
 		c.JSON(http.StatusOK, models.Response{
 			Code:      10004,
 			Message:   "账号或密码错误",
@@ -112,7 +107,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 	cfg := config.LoadConfig()
 	token, err := utils.GenerateToken(user.ID, user.Username, roleCode, cfg.JWT.Secret, cfg.JWT.ExpireTime)
 	if err != nil {
-		recordLoginLog(user.ID, user.Username, ip, userAgent, false, "生成token失败")
 		c.JSON(http.StatusInternalServerError, models.Response{
 			Code:      500,
 			Message:   "Failed to generate token",
@@ -121,7 +115,7 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	recordLoginLog(user.ID, user.Username, ip, userAgent, true, "登录成功")
+	recordLoginLog(user.ID, user.Username, ip, userAgent)
 	c.JSON(http.StatusOK, models.Response{
 		Code:    0,
 		Message: "OK",

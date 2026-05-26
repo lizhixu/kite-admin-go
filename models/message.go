@@ -3,16 +3,17 @@ package models
 import "time"
 
 type Message struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	Title      string    `gorm:"type:varchar(255);not null" json:"title"`
-	Content    string    `gorm:"type:longtext" json:"content"`
-	Type       string    `gorm:"type:varchar(20);default:SYSTEM" json:"type"`
-	SenderID   uint      `json:"senderId"`
-	SenderName string    `gorm:"type:varchar(50)" json:"senderName"`
-	TargetType string    `gorm:"type:varchar(20);not null" json:"targetType"`
-	Status     string    `gorm:"type:varchar(20);default:DRAFT" json:"status"`
-	CreateTime time.Time `gorm:"autoCreateTime" json:"createTime"`
-	UpdateTime time.Time `gorm:"autoUpdateTime" json:"updateTime"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Title       string    `gorm:"type:varchar(255);not null" json:"title"`
+	Content     string    `gorm:"type:longtext" json:"content"`
+	Type        string    `gorm:"type:varchar(20);default:SYSTEM" json:"type"`
+	SenderID    uint      `json:"senderId"`
+	SenderName  string    `gorm:"type:varchar(50)" json:"senderName"`
+	TargetType  string    `gorm:"type:varchar(20);not null" json:"targetType"`
+	TargetRoles string    `gorm:"type:varchar(500)" json:"targetRoles"` // JSON array of role IDs, e.g. "[1,2]"
+	Status      string    `gorm:"type:varchar(20);default:DRAFT" json:"status"`
+	CreateTime  time.Time `gorm:"autoCreateTime" json:"createTime"`
+	UpdateTime  time.Time `gorm:"autoUpdateTime" json:"updateTime"`
 }
 
 type MessageRecipient struct {

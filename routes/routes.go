@@ -123,7 +123,7 @@ func SetupRoutes(r *gin.Engine) {
 		api.POST("/storage/config/:id/test", middleware.RequirePermission("ManageStorage"), mediaCtrl.TestConfig)
 
 		// 消息管理
-		api.GET("/message/page", msgCtrl.GetPage)
+		api.GET("/message/page", middleware.RequirePermission("MessageList"), msgCtrl.GetPage)
 		api.POST("/message", middleware.RequirePermission("SendMessage"), msgCtrl.Create)
 		api.DELETE("/message/:id", middleware.RequirePermission("DeleteMessage"), msgCtrl.Delete)
 		api.POST("/message/bulk/delete", middleware.RequirePermission("DeleteMessage"), msgCtrl.BulkDelete)
@@ -135,13 +135,13 @@ func SetupRoutes(r *gin.Engine) {
 
 		// 邮件配置
 		api.GET("/email/config", emailCtrl.Get)
-		api.PUT("/email/config", middleware.RequirePermission("EmailConfigMgt"), emailCtrl.Save)
-		api.POST("/email/config/test", middleware.RequirePermission("EmailConfigMgt"), emailCtrl.Test)
+		api.PUT("/email/config", middleware.RequirePermission("SaveEmailConfig"), emailCtrl.Save)
+		api.POST("/email/config/test", middleware.RequirePermission("TestEmailConfig"), emailCtrl.Test)
 
 		// 邮件模板
 		api.GET("/email-template/list", tmplCtrl.GetList)
 		api.GET("/email-template/:id", tmplCtrl.GetOne)
-		api.PUT("/email-template/:id", middleware.RequirePermission("EmailTemplateMgt"), tmplCtrl.Update)
+		api.PUT("/email-template/:id", middleware.RequirePermission("SaveEmailTemplate"), tmplCtrl.Update)
 		api.POST("/email-template/:id/preview", tmplCtrl.Preview)
 	}
 

@@ -21,7 +21,8 @@ type createMessageRequest struct {
 	Title      string `json:"title" binding:"required"`
 	Content    string `json:"content" binding:"required"`
 	Type       string `json:"type" binding:"required,oneof=SYSTEM NOTICE ANNOUNCEMENT"`
-	TargetType string `json:"targetType" binding:"required,oneof=ALL USER"`
+	TargetType string `json:"targetType" binding:"required,oneof=ALL USER ROLE"`
+	RoleIDs    []uint `json:"roleIds"`
 	UserIDs    []uint `json:"userIds"`
 }
 
@@ -58,14 +59,21 @@ func (mc *MessageController) Create(c *gin.Context) {
 	userID := c.GetUint("userID")
 	username := c.GetString("username")
 
+	targetRolesJSON := ""
+	if len(req.RoleIDs) > 0 {
+		b, _ := json.Marshal(req.RoleIDs)
+		targetRolesJSON = string(b)
+	}
+
 	msg := models.Message{
-		Title:      req.Title,
-		Content:    req.Content,
-		Type:       req.Type,
-		SenderID:   userID,
-		SenderName: username,
-		TargetType: req.TargetType,
-		Status:     "SENT",
+		Title:       req.Title,
+		Content:     req.Content,
+		Type:        req.Type,
+		SenderID:    userID,
+		SenderName:  username,
+		TargetType:  req.TargetType,
+		TargetRoles: targetRolesJSON,
+		Status:      "SENT",
 	}
 
 	if err := config.DB.Create(&msg).Error; err != nil {
@@ -75,13 +83,24 @@ func (mc *MessageController) Create(c *gin.Context) {
 
 	// Determine target users
 	var userIDs []uint
-	if req.TargetType == "ALL" {
+	switch req.TargetType {
+	case "ALL":
 		var users []models.User
 		config.DB.Where("enable = ?", true).Find(&users)
 		for _, u := range users {
 			userIDs = append(userIDs, u.ID)
 		}
-	} else {
+	case "ROLE":
+		// Find all users that belong to any of the specified roles
+		var users []models.User
+		config.DB.Joins("JOIN user_roles ON user_roles.user_id = users.id").
+			Where("user_roles.role_id IN ? AND users.enable = ?", req.RoleIDs, true).
+			Distinct("users.id").
+			Find(&users)
+		for _, u := range users {
+			userIDs = append(userIDs, u.ID)
+		}
+	default:
 		userIDs = req.UserIDs
 	}
 

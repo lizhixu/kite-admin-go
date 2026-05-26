@@ -15,15 +15,11 @@ func (ll *LoginLogController) GetLogs(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	username := c.Query("username")
-	success := c.Query("success")
 
-	query := config.DB.Model(&models.LoginLog{})
+	query := config.DB.Model(&models.LoginLog{}).Where("success = ?", true)
 
 	if username != "" {
 		query = query.Where("username LIKE ?", "%"+username+"%")
-	}
-	if success != "" {
-		query = query.Where("success = ?", success == "true")
 	}
 
 	var total int64

@@ -319,21 +319,18 @@ func (pc *PermissionController) Delete(c *gin.Context) {
 func (pc *PermissionController) buildAllowedTree(all []models.Permission, parentId *uint, allowed map[uint]bool) []models.Permission {
 	var res []models.Permission
 	for _, p := range all {
-		// 检查是否启用
 		if p.Enable != nil && !*p.Enable {
 			continue
 		}
-		// 检查权限
-		if allowed != nil && !allowed[p.ID] {
-			continue
-		}
-		// 检查父级匹配
 		if (parentId == nil && p.ParentID == nil) || (parentId != nil && p.ParentID != nil && *parentId == *p.ParentID) {
 			children := pc.buildAllowedTree(all, &p.ID, allowed)
 			if len(children) > 0 {
 				p.Children = children
 			}
-			res = append(res, p)
+			// 节点自身被允许，或有被允许的子节点，则包含该节点
+			if allowed == nil || allowed[p.ID] || len(children) > 0 {
+				res = append(res, p)
+			}
 		}
 	}
 	return res
