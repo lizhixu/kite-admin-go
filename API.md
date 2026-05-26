@@ -542,10 +542,10 @@ GET /syslog/list?pageNo=1&pageSize=10&username=keyword&method=GET&statusCode=200
 ### 5.2 登录日志列表（分页）
 
 ```
-GET /loginlog/list?pageNo=1&pageSize=10&username=keyword&success=true
+GET /loginlog/list?pageNo=1&pageSize=10&username=keyword
 ```
 
-登录成功/失败均会自动记录（异步写入）。
+仅记录登录成功的日志（异步写入）。
 
 **查询参数**:
 
@@ -554,7 +554,6 @@ GET /loginlog/list?pageNo=1&pageSize=10&username=keyword&success=true
 | pageNo | int | 否 | 页码，默认 1 |
 | pageSize | int | 否 | 每页条数，默认 10 |
 | username | string | 否 | 用户名模糊搜索 |
-| success | string | 否 | 是否成功：`true` / `false` |
 
 **响应**:
 
@@ -1273,6 +1272,8 @@ POST /storage/config/:id/test
 GET /message/page?pageNo=1&pageSize=10&title=keyword&type=SYSTEM
 ```
 
+**权限**: `MessageList`
+
 **查询参数**:
 
 | 参数 | 类型 | 必填 | 说明 |
@@ -1299,8 +1300,9 @@ POST /message
 | title | string | 是 | 消息标题 |
 | content | string | 是 | 消息内容 |
 | type | string | 是 | 消息类型：`SYSTEM` / `NOTICE` / `ANNOUNCEMENT` |
-| targetType | string | 是 | 目标类型：`ALL`（全体用户）/ `USER`（指定用户） |
+| targetType | string | 是 | 目标类型：`ALL`（全体用户）/ `USER`（指定用户）/ `ROLE`（指定角色） |
 | userIds | uint[] | 否 | 目标用户 ID 列表（targetType 为 `USER` 时必填） |
+| roleIds | uint[] | 否 | 目标角色 ID 列表（targetType 为 `ROLE` 时必填，自动查找角色下所有启用用户） |
 
 发送后自动通过 SSE 推送通知，并异步投递邮件任务。
 
@@ -1466,7 +1468,7 @@ GET /email/config
 PUT /email/config
 ```
 
-**权限**: `EmailConfigMgt`
+**权限**: `SaveEmailConfig`
 
 **请求体**:
 
@@ -1490,7 +1492,7 @@ PUT /email/config
 POST /email/config/test
 ```
 
-**权限**: `EmailConfigMgt`
+**权限**: `TestEmailConfig`
 
 向当前登录用户的邮箱发送一封测试邮件（需先在个人资料中绑定邮箱）。
 
@@ -1522,7 +1524,7 @@ GET /email-template/:id
 PUT /email-template/:id
 ```
 
-**权限**: `EmailTemplateMgt`
+**权限**: `SaveEmailTemplate`
 
 **请求体**:
 
@@ -1596,9 +1598,11 @@ POST /email-template/:id/preview
 | ManageFolder | 管理文件夹 |
 | ManageStorage | 管理存储配置 |
 | ViewAllMedia | 查看所有用户的媒体 |
+| MessageList | 查看消息列表 |
 | SendMessage | 发送消息 |
 | DeleteMessage | 删除消息 |
-| EmailConfigMgt | 管理邮件配置 |
-| EmailTemplateMgt | 管理邮件模板 |
+| SaveEmailConfig | 保存邮件配置 |
+| TestEmailConfig | 测试邮件配置 |
+| SaveEmailTemplate | 保存邮件模板 |
 
 > `SUPER_ADMIN` 角色自动跳过所有权限检查。
