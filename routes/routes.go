@@ -15,6 +15,7 @@ func SetupRoutes(r *gin.Engine) {
 	roleCtrl := &controllers.RoleController{}
 	permCtrl := &controllers.PermissionController{}
 	syslogCtrl := &controllers.SysLogController{}
+	loginLogCtrl := &controllers.LoginLogController{}
 	taskCtrl := &controllers.TaskController{}
 	queueCtrl := &controllers.QueueController{}
 	mediaCtrl := &controllers.MediaController{}
@@ -67,6 +68,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		// 日志相关
 		api.GET("/syslog/list", syslogCtrl.GetLogs)
+		api.GET("/loginlog/list", loginLogCtrl.GetLogs)
 
 		// 定时任务
 		api.GET("/task/page", taskCtrl.GetPage)

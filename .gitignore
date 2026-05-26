@@ -5,6 +5,7 @@ main.exe
 *.dll
 *.so
 *.dylib
+tmp/*
 
 # Environments
 .env

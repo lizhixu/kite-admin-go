@@ -539,6 +539,48 @@ GET /syslog/list?pageNo=1&pageSize=10&username=keyword&method=GET&statusCode=200
 
 ---
 
+### 5.2 登录日志列表（分页）
+
+```
+GET /loginlog/list?pageNo=1&pageSize=10&username=keyword&success=true
+```
+
+登录成功/失败均会自动记录（异步写入）。
+
+**查询参数**:
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| pageNo | int | 否 | 页码，默认 1 |
+| pageSize | int | 否 | 每页条数，默认 10 |
+| username | string | 否 | 用户名模糊搜索 |
+| success | string | 否 | 是否成功：`true` / `false` |
+
+**响应**:
+
+```json
+{
+  "code": 0,
+  "data": {
+    "pageData": [
+      {
+        "id": 1,
+        "userId": 1,
+        "username": "admin",
+        "ip": "127.0.0.1",
+        "userAgent": "Mozilla/5.0 ...",
+        "success": true,
+        "message": "登录成功",
+        "createTime": "..."
+      }
+    ],
+    "total": 1
+  }
+}
+```
+
+---
+
 ## 六、定时任务 `/task`
 
 ### 6.1 任务列表（分页）

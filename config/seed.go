@@ -141,6 +141,7 @@ func defaultPermissions() []models.Permission {
 
 		// 日志管理
 		{ID: 6, Name: "日志管理", Code: "LogMgt", Type: "MENU", ParentID: ptrUint(2), Path: ptrStr("/log/list"), Icon: ptrStr("i-fe:file-text"), Component: ptrStr("/src/views/log/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
+		{ID: 60, Name: "登录日志", Code: "LoginLog", Type: "MENU", ParentID: ptrUint(2), Path: ptrStr("/log/login"), Icon: ptrStr("i-fe:log-in"), Component: ptrStr("/src/views/log/login.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 5},
 
 		// 资源管理
 		{ID: 1, Name: "资源管理", Code: "Resource_Mgt", Type: "MENU", ParentID: ptrUint(2), Path: ptrStr("/pms/resource"), Icon: ptrStr("i-fe:list"), Component: ptrStr("/src/views/pms/resource/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
