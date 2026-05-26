@@ -26,6 +26,7 @@ func RegisteredModels() []any {
 		&models.EmailConfig{},
 		&models.EmailTemplate{},
 		&models.LoginLog{},
+		&models.SystemConfig{},
 	}
 }
 

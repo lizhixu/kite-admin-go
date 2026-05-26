@@ -36,6 +36,11 @@ func Seed() error {
 		return fmt.Errorf("seed email templates: %w", err)
 	}
 
+	// 系统配置：仅首次初始化
+	if err := seedSystemConfigIfEmpty(); err != nil {
+		return fmt.Errorf("seed system config: %w", err)
+	}
+
 	return nil
 }
 
@@ -138,6 +143,10 @@ func defaultPermissions() []models.Permission {
 	return []models.Permission{
 		// 系统管理
 		{ID: 2, Name: "系统管理", Code: "SysMgt", Type: "MENU", Icon: ptrStr("i-fe:grid"), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
+
+		// 系统配置
+		{ID: 61, Name: "系统配置", Code: "SystemConfig", Type: "MENU", ParentID: ptrUint(2), Path: ptrStr("/system/config"), Icon: ptrStr("i-fe:settings"), Component: ptrStr("/src/views/system/config.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 0},
+		{ID: 62, Name: "保存系统配置", Code: "SaveSystemConfig", Type: "BUTTON", ParentID: ptrUint(61), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
 
 		// 日志管理
 		{ID: 6, Name: "日志管理", Code: "LogMgt", Type: "MENU", ParentID: ptrUint(2), Path: ptrStr("/log/list"), Icon: ptrStr("i-fe:file-text"), Component: ptrStr("/src/views/log/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
@@ -583,4 +592,23 @@ func defaultEmailTemplates() []models.EmailTemplate {
 </html>`,
 		},
 	}
+}
+
+func seedSystemConfigIfEmpty() error {
+	var count int64
+	if err := DB.Model(&models.SystemConfig{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	cfg := models.SystemConfig{
+		SiteName:  "Kite Admin",
+		Copyright: "© 2024 Kite Admin. All rights reserved.",
+	}
+	if err := DB.Create(&cfg).Error; err != nil {
+		return err
+	}
+	log.Println("Default system config seeded")
+	return nil
 }

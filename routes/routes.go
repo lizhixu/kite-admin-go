@@ -16,6 +16,7 @@ func SetupRoutes(r *gin.Engine) {
 	permCtrl := &controllers.PermissionController{}
 	syslogCtrl := &controllers.SysLogController{}
 	loginLogCtrl := &controllers.LoginLogController{}
+	sysConfigCtrl := &controllers.SystemConfigController{}
 	taskCtrl := &controllers.TaskController{}
 	queueCtrl := &controllers.QueueController{}
 	mediaCtrl := &controllers.MediaController{}
@@ -29,6 +30,7 @@ func SetupRoutes(r *gin.Engine) {
 		auth.POST("/login", authCtrl.Login)
 		auth.GET("/captcha", authCtrl.GetCaptcha)
 		auth.POST("/logout", authCtrl.Logout)
+		auth.GET("/system/config", sysConfigCtrl.Get)
 	}
 
 	// 需要认证的路由
@@ -69,6 +71,10 @@ func SetupRoutes(r *gin.Engine) {
 		// 日志相关
 		api.GET("/syslog/list", syslogCtrl.GetLogs)
 		api.GET("/loginlog/list", loginLogCtrl.GetLogs)
+
+		// 系统配置
+		api.GET("/system/config", sysConfigCtrl.Get)
+		api.PUT("/system/config", middleware.RequirePermission("SaveSystemConfig"), sysConfigCtrl.Save)
 
 		// 定时任务
 		api.GET("/task/page", taskCtrl.GetPage)
