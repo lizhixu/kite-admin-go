@@ -31,6 +31,11 @@ func Seed() error {
 		return fmt.Errorf("seed default storage: %w", err)
 	}
 
+	// 邮件模板：仅首次初始化
+	if err := seedEmailTemplatesIfEmpty(); err != nil {
+		return fmt.Errorf("seed email templates: %w", err)
+	}
+
 	return nil
 }
 
@@ -188,6 +193,14 @@ func defaultPermissions() []models.Permission {
 		// 子菜单：存储配置
 		{ID: 35, Name: "存储配置", Code: "StorageMgt", Type: "MENU", ParentID: ptrUint(30), Path: ptrStr("/media/storage"), Icon: ptrStr("i-fe:hard-drive"), Component: ptrStr("/src/views/media/storage/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
 		{ID: 33, Name: "管理存储", Code: "ManageStorage", Type: "BUTTON", ParentID: ptrUint(35), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
+
+		// 消息管理
+		{ID: 50, Name: "消息管理", Code: "MsgMgt", Type: "MENU", Icon: ptrStr("i-fe:bell"), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
+		{ID: 51, Name: "消息列表", Code: "MessageList", Type: "MENU", ParentID: ptrUint(50), Path: ptrStr("/message/list"), Icon: ptrStr("i-fe:message-square"), Component: ptrStr("/src/views/message/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
+		{ID: 52, Name: "发送消息", Code: "SendMessage", Type: "BUTTON", ParentID: ptrUint(51), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
+		{ID: 53, Name: "删除消息", Code: "DeleteMessage", Type: "BUTTON", ParentID: ptrUint(51), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
+		{ID: 54, Name: "邮件配置", Code: "EmailConfigMgt", Type: "MENU", ParentID: ptrUint(50), Path: ptrStr("/message/email-config"), Icon: ptrStr("i-fe:mail"), Component: ptrStr("/src/views/message/email-config.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
+		{ID: 55, Name: "邮件模板", Code: "EmailTemplateMgt", Type: "MENU", ParentID: ptrUint(50), Path: ptrStr("/message/email-template"), Icon: ptrStr("i-fe:layout"), Component: ptrStr("/src/views/message/email-template.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},
 	}
 }
 
@@ -258,4 +271,315 @@ func seedDefaultStorageIfEmpty() error {
 	}
 	log.Println("Default LOCAL storage config seeded")
 	return nil
+}
+
+func seedEmailTemplatesIfEmpty() error {
+	var count int64
+	if err := DB.Model(&models.EmailTemplate{}).Count(&count).Error; err != nil {
+		return err
+	}
+
+	templates := defaultEmailTemplates()
+
+	if count == 0 {
+		// 首次初始化，创建所有模板
+		for _, tmpl := range templates {
+			if err := DB.Create(&tmpl).Error; err != nil {
+				return err
+			}
+		}
+		log.Println("Email templates seeded")
+		return nil
+	}
+
+	// 已存在模板，同步更新内置模板
+	for _, tmpl := range templates {
+		var existing models.EmailTemplate
+		err := DB.Where("scene = ? AND is_builtin = ?", tmpl.Scene, true).First(&existing).Error
+		if err == gorm.ErrRecordNotFound {
+			// 不存在则创建
+			if err := DB.Create(&tmpl).Error; err != nil {
+				return err
+			}
+			log.Printf("Created builtin email template: %s", tmpl.Scene)
+		} else if err == nil {
+			// 已存在则更新
+			existing.Name = tmpl.Name
+			existing.Subject = tmpl.Subject
+			existing.Content = tmpl.Content
+			if err := DB.Save(&existing).Error; err != nil {
+				return err
+			}
+			log.Printf("Updated builtin email template: %s", tmpl.Scene)
+		} else {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func defaultEmailTemplates() []models.EmailTemplate {
+	return []models.EmailTemplate{
+		{
+			Scene:     "SYSTEM",
+			Name:      "系统消息",
+			Subject:   "【系统通知】{{title}}",
+			IsBuiltin: true,
+			Content: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{title}}</title>
+</head>
+
+<body style="margin:0; padding:0; background:#f7f5f2; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Arial,sans-serif; color:#1f2329;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="width:100%; background:#f7f5f2; padding:40px 16px;">
+    <tr>
+      <td align="center">
+
+        <!-- Container -->
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="width:600px; max-width:100%; background:#ffffff; border:1px solid #e8e3dc; border-radius:10px; overflow:hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding:18px 28px; border-bottom:1px solid #eee8df; background:#ffffff;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td style="vertical-align:middle; padding-right:10px;">
+                          <!-- SVG Icon -->
+                          <span style="display:inline-block; width:30px; height:30px; border-radius:8px; background:#fff3e0; text-align:center; line-height:30px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M12 2.75C7.168 2.75 3.25 6.668 3.25 11.5C3.25 14.013 4.312 16.278 6.012 17.875C6.286 18.132 6.45 18.488 6.45 18.864V19.25C6.45 20.355 7.345 21.25 8.45 21.25H15.55C16.655 21.25 17.55 20.355 17.55 19.25V18.864C17.55 18.488 17.714 18.132 17.988 17.875C19.688 16.278 20.75 14.013 20.75 11.5C20.75 6.668 16.832 2.75 12 2.75Z" fill="#F59E0B"/>
+                              <path d="M9.25 11.75L11.1 13.6L15.1 9.6" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                          </span>
+                        </td>
+                        <td style="vertical-align:middle;">
+                          <div style="font-size:14px; font-weight:600; color:#1f2329; line-height:1.3;">
+                            系统通知
+                          </div>
+                          <div style="font-size:12px; color:#8a8178; line-height:1.5; margin-top:1px;">
+                            System Message
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                  <td align="right" style="vertical-align:middle; font-size:12px; color:#9a938b; white-space:nowrap;">
+                    {{currentTime}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Main -->
+          <tr>
+            <td style="padding:30px 32px 8px;">
+              <div style="display:inline-block; padding:4px 10px; border-radius:999px; background:#fff7ed; color:#d97706; font-size:12px; line-height:1.5; margin-bottom:14px;">
+                系统消息
+              </div>
+
+              <h1 style="margin:0; padding:0; font-size:20px; font-weight:600; line-height:1.45; color:#1f2329;">
+                {{title}}
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding:14px 32px 32px;">
+              <div style="font-size:14px; line-height:1.85; color:#4e5969;">
+                {{content}}
+              </div>
+            </td>
+          </tr>
+
+          <!-- Notice Box -->
+          <tr>
+            <td style="padding:0 32px 30px;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#fbfaf8; border:1px solid #eee8df; border-radius:8px;">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td style="vertical-align:top; padding-right:10px;">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-top:2px;" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 21.5C17.247 21.5 21.5 17.247 21.5 12C21.5 6.75329 17.247 2.5 12 2.5C6.75329 2.5 2.5 6.75329 2.5 12C2.5 17.247 6.75329 21.5 12 21.5Z" fill="#D6CEC4"/>
+                            <path d="M12 10.75C12.4142 10.75 12.75 11.0858 12.75 11.5V16.25C12.75 16.6642 12.4142 17 12 17C11.5858 17 11.25 16.6642 11.25 16.25V11.5C11.25 11.0858 11.5858 10.75 12 10.75Z" fill="#FFFFFF"/>
+                            <path d="M12 7.25C12.5523 7.25 13 7.69772 13 8.25C13 8.80228 12.5523 9.25 12 9.25C11.4477 9.25 11 8.80228 11 8.25C11 7.69772 11.4477 7.25 12 7.25Z" fill="#FFFFFF"/>
+                          </svg>
+                        </td>
+                        <td style="font-size:12px; line-height:1.7; color:#8a8178;">
+                          此邮件由系统自动发送，仅用于消息通知。如需处理相关事项，请前往系统查看。
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:18px 32px; border-top:1px solid #eee8df; background:#fbfaf8;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="font-size:12px; color:#9a938b; line-height:1.6;">
+                    请勿直接回复此邮件
+                  </td>
+                  <td align="right" style="font-size:12px; color:#b8b0a7; line-height:1.6;">
+                    Powered by System
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+		},
+		{
+			Scene:     "NOTICE",
+			Name:      "通知公告",
+			Subject:   "【通知公告】{{title}}",
+			IsBuiltin: true,
+			Content: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{title}}</title>
+</head>
+
+<body style="margin:0; padding:0; background:#f6f7f9; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Arial,sans-serif; color:#1f2329;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="width:100%; background:#f6f7f9; padding:40px 16px;">
+    <tr>
+      <td align="center">
+
+        <!-- Container -->
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="width:600px; max-width:100%; background:#ffffff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden;">
+
+          <!-- Top Bar -->
+          <tr>
+            <td style="padding:18px 28px; border-bottom:1px solid #eef0f3;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td style="vertical-align:middle; padding-right:10px;">
+                          <!-- SVG Icon -->
+                          <span style="display:inline-block; width:28px; height:28px; border-radius:8px; background:#e8f7ee; text-align:center; line-height:28px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M12 22C13.1046 22 14 21.1046 14 20H10C10 21.1046 10.8954 22 12 22Z" fill="#18A058"/>
+                              <path d="M18 16V11C18 7.68629 15.3137 5 12 5C8.68629 5 6 7.68629 6 11V16L4.70711 17.2929C4.07714 17.9229 4.52331 19 5.41421 19H18.5858C19.4767 19 19.9229 17.9229 19.2929 17.2929L18 16Z" fill="#18A058"/>
+                              <path d="M14.5 4.5C14.5 3.11929 13.3807 2 12 2C10.6193 2 9.5 3.11929 9.5 4.5V5.1C10.2749 4.73018 11.1224 4.5 12 4.5C12.8776 4.5 13.7251 4.73018 14.5 5.1V4.5Z" fill="#18A058"/>
+                            </svg>
+                          </span>
+                        </td>
+                        <td style="vertical-align:middle;">
+                          <div style="font-size:14px; font-weight:600; color:#1f2329; line-height:1.3;">
+                            通知公告
+                          </div>
+                          <div style="font-size:12px; color:#86909c; line-height:1.5; margin-top:1px;">
+                            System Notification
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                  <td align="right" style="vertical-align:middle; font-size:12px; color:#86909c; white-space:nowrap;">
+                    {{currentTime}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:30px 32px 8px;">
+              <div style="display:inline-block; padding:4px 10px; border-radius:999px; background:#f0f6ff; color:#2080f0; font-size:12px; line-height:1.5; margin-bottom:14px;">
+                新消息
+              </div>
+
+              <h1 style="margin:0; padding:0; font-size:20px; font-weight:600; line-height:1.45; color:#1f2329;">
+                {{title}}
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:14px 32px 32px;">
+              <div style="font-size:14px; line-height:1.85; color:#4e5969;">
+                {{content}}
+              </div>
+            </td>
+          </tr>
+
+          <!-- Info Box -->
+          <tr>
+            <td style="padding:0 32px 30px;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#fafafa; border:1px solid #edf0f2; border-radius:8px;">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td style="vertical-align:top; padding-right:10px;">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-top:2px;" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="#C9CDD4"/>
+                            <path d="M12 10.75C12.4142 10.75 12.75 11.0858 12.75 11.5V16.5C12.75 16.9142 12.4142 17.25 12 17.25C11.5858 17.25 11.25 16.9142 11.25 16.5V11.5C11.25 11.0858 11.5858 10.75 12 10.75Z" fill="#FFFFFF"/>
+                            <path d="M12 7C12.5523 7 13 7.44772 13 8C13 8.55228 12.5523 9 12 9C11.4477 9 11 8.55228 11 8C11 7.44772 11.4477 7 12 7Z" fill="#FFFFFF"/>
+                          </svg>
+                        </td>
+                        <td style="font-size:12px; line-height:1.7; color:#86909c;">
+                          此邮件由系统自动发送，仅用于消息通知。如需处理相关事项，请前往系统查看。
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:18px 32px; border-top:1px solid #eef0f3; background:#fbfbfc;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="font-size:12px; color:#a0a7b2; line-height:1.6;">
+                    请勿直接回复此邮件
+                  </td>
+                  <td align="right" style="font-size:12px; color:#c0c4cc; line-height:1.6;">
+                    Powered by System
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+		},
+	}
 }

@@ -18,6 +18,9 @@ func SetupRoutes(r *gin.Engine) {
 	taskCtrl := &controllers.TaskController{}
 	queueCtrl := &controllers.QueueController{}
 	mediaCtrl := &controllers.MediaController{}
+	msgCtrl := &controllers.MessageController{}
+	emailCtrl := &controllers.EmailConfigController{}
+	tmplCtrl := &controllers.EmailTemplateController{}
 
 	// 认证相关路由（无需认证）
 	auth := r.Group("/auth")
@@ -104,6 +107,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		// 媒体文件夹
 		api.GET("/media/folder/tree", mediaCtrl.ListFolders)
+		api.GET("/media/folder/resolve", mediaCtrl.ResolveFolder)
 		api.POST("/media/folder", middleware.RequirePermission("ManageFolder"), mediaCtrl.CreateFolder)
 		api.PATCH("/media/folder/:id", middleware.RequirePermission("ManageFolder"), mediaCtrl.RenameFolder)
 		api.DELETE("/media/folder/:id", middleware.RequirePermission("ManageFolder"), mediaCtrl.DeleteFolder)
@@ -115,5 +119,34 @@ func SetupRoutes(r *gin.Engine) {
 		api.DELETE("/storage/config/:id", middleware.RequirePermission("ManageStorage"), mediaCtrl.DeleteConfig)
 		api.PATCH("/storage/config/:id/default", middleware.RequirePermission("ManageStorage"), mediaCtrl.SetDefault)
 		api.POST("/storage/config/:id/test", middleware.RequirePermission("ManageStorage"), mediaCtrl.TestConfig)
+
+		// 消息管理
+		api.GET("/message/page", msgCtrl.GetPage)
+		api.POST("/message", middleware.RequirePermission("SendMessage"), msgCtrl.Create)
+		api.DELETE("/message/:id", middleware.RequirePermission("DeleteMessage"), msgCtrl.Delete)
+		api.POST("/message/bulk/delete", middleware.RequirePermission("DeleteMessage"), msgCtrl.BulkDelete)
+		api.GET("/message/mine", msgCtrl.GetMyMessages)
+		api.GET("/message/unread/count", msgCtrl.GetUnreadCount)
+		api.PATCH("/message/:id/read", msgCtrl.MarkRead)
+		api.PATCH("/message/read/all", msgCtrl.MarkAllRead)
+		api.PATCH("/message/bulk/read", msgCtrl.BulkMarkRead)
+
+		// 邮件配置
+		api.GET("/email/config", emailCtrl.Get)
+		api.PUT("/email/config", middleware.RequirePermission("EmailConfigMgt"), emailCtrl.Save)
+		api.POST("/email/config/test", middleware.RequirePermission("EmailConfigMgt"), emailCtrl.Test)
+
+		// 邮件模板
+		api.GET("/email-template/list", tmplCtrl.GetList)
+		api.GET("/email-template/:id", tmplCtrl.GetOne)
+		api.PUT("/email-template/:id", middleware.RequirePermission("EmailTemplateMgt"), tmplCtrl.Update)
+		api.POST("/email-template/:id/preview", tmplCtrl.Preview)
+	}
+
+	// SSE 路由（仅 AuthMiddleware，跳过 OperationLog 避免缓冲响应）
+	sseGroup := r.Group("")
+	sseGroup.Use(middleware.AuthMiddleware())
+	{
+		sseGroup.GET("/message/sse", msgCtrl.SSE)
 	}
 }

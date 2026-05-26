@@ -502,6 +502,80 @@ func (mc *MediaController) DeleteFolder(c *gin.Context) {
 	respondOK(c, true)
 }
 
+// ResolveFolder 按路径解析（或自动创建）文件夹，返回最终文件夹对象。
+// GET /media/folder/resolve?configId=1&path=avatars/2024
+func (mc *MediaController) ResolveFolder(c *gin.Context) {
+	configIDStr := c.Query("configId")
+	folderPath := strings.TrimSpace(c.Query("path"))
+	if folderPath == "" {
+		respondErr(c, 400, "path is required")
+		return
+	}
+	configID, err := strconv.Atoi(configIDStr)
+	if err != nil || configID <= 0 {
+		respondErr(c, 400, "valid configId is required")
+		return
+	}
+	// 校验存储存在
+	var cfg models.StorageConfig
+	if err := config.DB.First(&cfg, configID).Error; err != nil {
+		respondErr(c, 404, "storage config not found")
+		return
+	}
+	// 规范化路径：去首尾 /，拆分段
+	folderPath = strings.Trim(folderPath, "/")
+	if folderPath == "" {
+		respondErr(c, 400, "path cannot be empty")
+		return
+	}
+	segments := strings.Split(folderPath, "/")
+	autoCreate := c.Query("autoCreate") == "1"
+
+	var currentParentID *uint
+	var currentFolder models.MediaFolder
+	for _, seg := range segments {
+		if seg == "" {
+			continue
+		}
+		// 查找同级同名文件夹
+		q := config.DB.Model(&models.MediaFolder{}).Where("config_id = ? AND name = ?", configID, seg)
+		if currentParentID != nil {
+			q = q.Where("parent_id = ?", *currentParentID)
+		} else {
+			q = q.Where("parent_id IS NULL")
+		}
+		err := q.First(&currentFolder).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if !autoCreate {
+				respondErr(c, 404, fmt.Sprintf("folder not found: %s", seg))
+				return
+			}
+			// 自动创建
+			parentPath := ""
+			if currentParentID != nil {
+				parentPath = currentFolder.Path + "/"
+			}
+			newFolder := models.MediaFolder{
+				Name:     seg,
+				ParentID: currentParentID,
+				ConfigID: uint(configID),
+				Path:     parentPath + seg,
+			}
+			if err := config.DB.Create(&newFolder).Error; err != nil {
+				respondErr(c, 500, err.Error())
+				return
+			}
+			currentFolder = newFolder
+		} else if err != nil {
+			respondErr(c, 500, err.Error())
+			return
+		}
+		pid := currentFolder.ID
+		currentParentID = &pid
+	}
+	respondOK(c, currentFolder)
+}
+
 // --- 存储配置 ---
 
 type storageConfigRequest struct {

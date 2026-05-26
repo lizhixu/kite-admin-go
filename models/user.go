@@ -16,7 +16,7 @@ type User struct {
 type Profile struct {
 	ID       uint    `gorm:"primaryKey" json:"id"`
 	NickName string  `json:"nickName"`
-	Gender   *string `json:"gender"`
+	Gender   *int    `json:"gender"`
 	Avatar   string  `json:"avatar"`
 	Address  *string `json:"address"`
 	Email    *string `json:"email"`

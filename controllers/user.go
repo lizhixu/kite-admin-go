@@ -112,7 +112,7 @@ func (uc *UserController) Create(c *gin.Context) {
 		Enable   *bool   `json:"enable"`
 		RoleIds  []uint  `json:"roleIds"`
 		NickName *string `json:"nickName"`
-		Gender   *string `json:"gender"`
+		Gender   *int    `json:"gender"`
 		Avatar   *string `json:"avatar"`
 		Address  *string `json:"address"`
 		Email    *string `json:"email"`
@@ -200,7 +200,7 @@ func (uc *UserController) Update(c *gin.Context) {
 		Enable   *bool   `json:"enable"`
 		RoleIds  []uint  `json:"roleIds"`
 		NickName *string `json:"nickName"`
-		Gender   *string `json:"gender"`
+		Gender   *int    `json:"gender"`
 		Avatar   *string `json:"avatar"`
 		Address  *string `json:"address"`
 		Email    *string `json:"email"`
@@ -334,7 +334,7 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 
 	var req struct {
 		NickName *string `json:"nickName"`
-		Gender   *string `json:"gender"`
+		Gender   *int    `json:"gender"`
 		Avatar   *string `json:"avatar"`
 		Address  *string `json:"address"`
 		Email    *string `json:"email"`

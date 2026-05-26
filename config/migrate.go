@@ -21,6 +21,10 @@ func RegisteredModels() []any {
 		&models.Media{},
 		&models.MediaFolder{},
 		&models.StorageConfig{},
+		&models.Message{},
+		&models.MessageRecipient{},
+		&models.EmailConfig{},
+&models.EmailTemplate{},
 	}
 }
 
