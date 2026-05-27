@@ -11,6 +11,35 @@ import (
 
 type RoleController struct{}
 
+type createRoleRequest struct {
+	Name          string `json:"name" binding:"required"`
+	Code          string `json:"code" binding:"required"`
+	Enable        *bool  `json:"enable"`
+	PermissionIds []uint `json:"permissionIds"`
+}
+
+type updateRoleRequest struct {
+	Name          string `json:"name"`
+	Code          string `json:"code"`
+	Enable        *bool  `json:"enable"`
+	PermissionIds []uint `json:"permissionIds"`
+}
+
+type roleUsersRequest struct {
+	UserIds []uint `json:"userIds" binding:"required"`
+}
+
+// GetPage 分页查询角色
+// @Summary      分页查询角色
+// @Description  分页查询角色列表，支持按名称搜索
+// @Tags         角色管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        name     query    string false "角色名称（模糊搜索）"
+// @Param        pageNo   query    int    false "页码"     default(1)
+// @Param        pageSize query    int    false "每页数量" default(10)
+// @Success      200      {object} models.Response{data=models.PageData} "成功"
+// @Router       /role/page [get]
 func (rc *RoleController) GetPage(c *gin.Context) {
 	name := c.Query("name")
 	pageNo, _ := strconv.Atoi(c.Query("pageNo"))
@@ -61,6 +90,14 @@ func (rc *RoleController) GetPage(c *gin.Context) {
 	})
 }
 
+// GetAll 获取所有启用角色
+// @Summary      获取所有启用角色
+// @Description  获取所有启用状态的角色列表
+// @Tags         角色管理
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response{data=[]models.Role} "成功"
+// @Router       /role [get]
 func (rc *RoleController) GetAll(c *gin.Context) {
 	var roles []models.Role
 	config.DB.Where("enable = ?", true).Find(&roles)
@@ -73,13 +110,19 @@ func (rc *RoleController) GetAll(c *gin.Context) {
 	})
 }
 
+// Create 创建角色
+// @Summary      创建角色
+// @Description  创建新角色，可同时分配权限
+// @Tags         角色管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     createRoleRequest true "角色信息"
+// @Success      200  {object} models.Response{data=models.Role} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /role [post]
 func (rc *RoleController) Create(c *gin.Context) {
-	var req struct {
-		Name          string `json:"name" binding:"required"`
-		Code          string `json:"code" binding:"required"`
-		Enable        *bool  `json:"enable"`
-		PermissionIds []uint `json:"permissionIds"`
-	}
+	var req createRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
 			Code:      400,
@@ -121,14 +164,22 @@ func (rc *RoleController) Create(c *gin.Context) {
 	})
 }
 
+// Update 更新角色
+// @Summary      更新角色
+// @Description  更新角色信息和权限关联
+// @Tags         角色管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int               true "角色ID"
+// @Param        body body     updateRoleRequest true "角色信息"
+// @Success      200  {object} models.Response "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "角色不存在"
+// @Router       /role/{id} [patch]
 func (rc *RoleController) Update(c *gin.Context) {
 	id := c.Param("id")
-	var req struct {
-		Name          string `json:"name"`
-		Code          string `json:"code"`
-		Enable        *bool  `json:"enable"`
-		PermissionIds []uint `json:"permissionIds"`
-	}
+	var req updateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
 			Code:      400,
@@ -201,6 +252,17 @@ func (rc *RoleController) Update(c *gin.Context) {
 	})
 }
 
+// Delete 删除角色
+// @Summary      删除角色
+// @Description  删除指定角色（SUPER_ADMIN角色不可删除）
+// @Tags         角色管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "角色ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      400 {object} models.Response "不可删除超级管理员角色"
+// @Failure      404 {object} models.Response "角色不存在"
+// @Router       /role/{id} [delete]
 func (rc *RoleController) Delete(c *gin.Context) {
 	id := c.Param("id")
 
@@ -245,11 +307,22 @@ func (rc *RoleController) Delete(c *gin.Context) {
 	})
 }
 
+// AddUsers 添加角色用户
+// @Summary      添加角色用户
+// @Description  向指定角色添加用户
+// @Tags         角色管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int              true "角色ID"
+// @Param        body body     roleUsersRequest true "用户ID列表"
+// @Success      200  {object} models.Response "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "角色不存在"
+// @Router       /role/users/add/{id} [patch]
 func (rc *RoleController) AddUsers(c *gin.Context) {
 	id := c.Param("id")
-	var req struct {
-		UserIds []uint `json:"userIds" binding:"required"`
-	}
+	var req roleUsersRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
 			Code:      400,
@@ -296,11 +369,22 @@ func (rc *RoleController) AddUsers(c *gin.Context) {
 	})
 }
 
+// RemoveUsers 移除角色用户
+// @Summary      移除角色用户
+// @Description  从指定角色移除用户
+// @Tags         角色管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int              true "角色ID"
+// @Param        body body     roleUsersRequest true "用户ID列表"
+// @Success      200  {object} models.Response "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "角色不存在"
+// @Router       /role/users/remove/{id} [patch]
 func (rc *RoleController) RemoveUsers(c *gin.Context) {
 	id := c.Param("id")
-	var req struct {
-		UserIds []uint `json:"userIds" binding:"required"`
-	}
+	var req roleUsersRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
 			Code:      400,

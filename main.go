@@ -2,6 +2,7 @@ package main
 
 import (
 	"backend/config"
+	_ "backend/docs"
 	"backend/models"
 	"backend/queue"
 	"backend/routes"
@@ -12,6 +13,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// @title           Kite Admin API
+// @version         1.0
+// @description     kite-admin 后台管理系统 API 文档
+// @host            localhost:8080
+// @BasePath        /
+// @securityDefinitions.apikey BearerAuth
+// @in              header
+// @name            Authorization
 func main() {
 	cfg := config.LoadConfig()
 

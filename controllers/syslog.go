@@ -11,6 +11,19 @@ import (
 
 type SysLogController struct{}
 
+// GetLogs 查询系统日志
+// @Summary      查询系统日志
+// @Description  分页查询系统操作日志，支持按用户名、HTTP方法、状态码筛选
+// @Tags         系统日志
+// @Security     BearerAuth
+// @Produce      json
+// @Param        pageNo     query    int    false "页码"       default(1)
+// @Param        pageSize   query    int    false "每页数量"   default(10)
+// @Param        username   query    string false "用户名（模糊搜索）"
+// @Param        method     query    string false "HTTP方法"
+// @Param        statusCode query    string false "状态码"
+// @Success      200        {object} models.Response{data=models.PageData{pageData=[]models.SysLog}} "成功"
+// @Router       /syslog/list [get]
 func (sl *SysLogController) GetLogs(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))

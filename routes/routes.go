@@ -5,10 +5,15 @@ import (
 	"backend/middleware"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func SetupRoutes(r *gin.Engine) {
 	r.Use(middleware.CORSMiddleware())
+
+	// Swagger UI
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	authCtrl := &controllers.AuthController{}
 	userCtrl := &controllers.UserController{}

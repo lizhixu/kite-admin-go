@@ -10,6 +10,50 @@ import (
 
 type PermissionController struct{}
 
+type createPermissionRequest struct {
+	Name        string  `json:"name" binding:"required"`
+	Code        string  `json:"code" binding:"required"`
+	Type        string  `json:"type" binding:"required"`
+	ParentID    *uint   `json:"parentId"`
+	Path        *string `json:"path"`
+	Redirect    *string `json:"redirect"`
+	Icon        *string `json:"icon"`
+	Component   *string `json:"component"`
+	Layout      *string `json:"layout"`
+	KeepAlive   *bool   `json:"keepAlive"`
+	Method      *string `json:"method"`
+	Description *string `json:"description"`
+	Show        *bool   `json:"show"`
+	Enable      *bool   `json:"enable"`
+	Order       int     `json:"order"`
+}
+
+type updatePermissionRequest struct {
+	Name        *string `json:"name"`
+	Code        *string `json:"code"`
+	Type        *string `json:"type"`
+	ParentID    *uint   `json:"parentId"`
+	Path        *string `json:"path"`
+	Redirect    *string `json:"redirect"`
+	Icon        *string `json:"icon"`
+	Component   *string `json:"component"`
+	Layout      *string `json:"layout"`
+	KeepAlive   *bool   `json:"keepAlive"`
+	Method      *string `json:"method"`
+	Description *string `json:"description"`
+	Show        *bool   `json:"show"`
+	Enable      *bool   `json:"enable"`
+	Order       *int    `json:"order"`
+}
+
+// GetRolePermissionsTree 获取当前角色权限树
+// @Summary      获取当前角色权限树
+// @Description  根据当前登录用户的角色获取权限树（SUPER_ADMIN返回全部）
+// @Tags         权限管理
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response{data=[]models.Permission} "成功"
+// @Router       /role/permissions/tree [get]
 func (pc *PermissionController) GetRolePermissionsTree(c *gin.Context) {
 	roleCode := c.GetString("roleCode")
 
@@ -57,6 +101,14 @@ func (pc *PermissionController) GetRolePermissionsTree(c *gin.Context) {
 	})
 }
 
+// GetMenuTree 获取菜单树
+// @Summary      获取菜单树
+// @Description  获取所有MENU类型的权限树
+// @Tags         权限管理
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response{data=[]models.Permission} "成功"
+// @Router       /permission/menu/tree [get]
 func (pc *PermissionController) GetMenuTree(c *gin.Context) {
 	var allPermissions []models.Permission
 	config.DB.Where("type = ?", "MENU").Order("`order`").Find(&allPermissions)
@@ -71,6 +123,14 @@ func (pc *PermissionController) GetMenuTree(c *gin.Context) {
 	})
 }
 
+// GetTree 获取完整权限树
+// @Summary      获取完整权限树
+// @Description  获取所有权限的完整树形结构
+// @Tags         权限管理
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response{data=[]models.Permission} "成功"
+// @Router       /permission/tree [get]
 func (pc *PermissionController) GetTree(c *gin.Context) {
 	var allPermissions []models.Permission
 	config.DB.Order("`order`").Find(&allPermissions)
@@ -85,6 +145,15 @@ func (pc *PermissionController) GetTree(c *gin.Context) {
 	})
 }
 
+// GetButtonsByParentID 获取子按钮权限
+// @Summary      获取子按钮权限
+// @Description  获取指定父级下的所有BUTTON类型权限
+// @Tags         权限管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        parentId path     int true "父级权限ID"
+// @Success      200      {object} models.Response{data=[]models.Permission} "成功"
+// @Router       /permission/button/{parentId} [get]
 func (pc *PermissionController) GetButtonsByParentID(c *gin.Context) {
 	parentID := c.Param("parentId")
 
@@ -99,24 +168,19 @@ func (pc *PermissionController) GetButtonsByParentID(c *gin.Context) {
 	})
 }
 
+// Create 创建权限
+// @Summary      创建权限
+// @Description  创建新的权限节点（菜单、按钮等）
+// @Tags         权限管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     createPermissionRequest true "权限信息"
+// @Success      200  {object} models.Response{data=models.Permission} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /permission [post]
 func (pc *PermissionController) Create(c *gin.Context) {
-	var req struct {
-		Name        string  `json:"name" binding:"required"`
-		Code        string  `json:"code" binding:"required"`
-		Type        string  `json:"type" binding:"required"`
-		ParentID    *uint   `json:"parentId"`
-		Path        *string `json:"path"`
-		Redirect    *string `json:"redirect"`
-		Icon        *string `json:"icon"`
-		Component   *string `json:"component"`
-		Layout      *string `json:"layout"`
-		KeepAlive   *bool   `json:"keepAlive"`
-		Method      *string `json:"method"`
-		Description *string `json:"description"`
-		Show        *bool   `json:"show"`
-		Enable      *bool   `json:"enable"`
-		Order       int     `json:"order"`
-	}
+	var req createPermissionRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
@@ -173,25 +237,21 @@ func (pc *PermissionController) Create(c *gin.Context) {
 	})
 }
 
+// Update 更新权限
+// @Summary      更新权限
+// @Description  更新指定权限节点的信息
+// @Tags         权限管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int                    true "权限ID"
+// @Param        body body     updatePermissionRequest true "权限信息"
+// @Success      200  {object} models.Response "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /permission/{id} [patch]
 func (pc *PermissionController) Update(c *gin.Context) {
 	id := c.Param("id")
-	var req struct {
-		Name        *string `json:"name"`
-		Code        *string `json:"code"`
-		Type        *string `json:"type"`
-		ParentID    *uint   `json:"parentId"`
-		Path        *string `json:"path"`
-		Redirect    *string `json:"redirect"`
-		Icon        *string `json:"icon"`
-		Component   *string `json:"component"`
-		Layout      *string `json:"layout"`
-		KeepAlive   *bool   `json:"keepAlive"`
-		Method      *string `json:"method"`
-		Description *string `json:"description"`
-		Show        *bool   `json:"show"`
-		Enable      *bool   `json:"enable"`
-		Order       *int    `json:"order"`
-	}
+	var req updatePermissionRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
@@ -275,6 +335,16 @@ func (pc *PermissionController) Update(c *gin.Context) {
 	})
 }
 
+// Delete 删除权限
+// @Summary      删除权限
+// @Description  删除指定权限节点（需先删除子权限）
+// @Tags         权限管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "权限ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      400 {object} models.Response "存在子权限，无法删除"
+// @Router       /permission/{id} [delete]
 func (pc *PermissionController) Delete(c *gin.Context) {
 	id := c.Param("id")
 

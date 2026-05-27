@@ -13,7 +13,7 @@ import (
 
 type QueueController struct{}
 
-// queueUpdateRequest 仅允许编辑运维参数（name、handler 等代码侧字段不可改）
+// queueUpdateRequest 队列更新请求（仅允许编辑运维参数）
 type queueUpdateRequest struct {
 	Description string `json:"description"`
 	Concurrency int    `json:"concurrency"`
@@ -22,6 +22,16 @@ type queueUpdateRequest struct {
 	Status      string `json:"status"`
 }
 
+// GetOne 获取队列详情
+// @Summary      获取队列详情
+// @Description  根据ID获取队列详情
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "队列ID"
+// @Success      200 {object} models.Response{data=models.Queue} "成功"
+// @Failure      404 {object} models.Response "队列不存在"
+// @Router       /queue/{id} [get]
 func (qc *QueueController) GetOne(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var q models.Queue
@@ -32,6 +42,18 @@ func (qc *QueueController) GetOne(c *gin.Context) {
 	respondOK(c, q)
 }
 
+// GetPage 分页查询队列
+// @Summary      分页查询队列
+// @Description  分页查询队列列表，支持按名称和状态筛选
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Param        pageNo   query    int    false "页码"     default(1)
+// @Param        pageSize query    int    false "每页数量" default(10)
+// @Param        name     query    string false "队列名称（模糊搜索）"
+// @Param        status   query    string false "状态（RUNNING/PAUSED）"
+// @Success      200      {object} models.Response{data=models.PageData{pageData=[]models.Queue}} "成功"
+// @Router       /queue/page [get]
 func (qc *QueueController) GetPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -58,6 +80,19 @@ func (qc *QueueController) GetPage(c *gin.Context) {
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
 
+// Update 更新队列配置
+// @Summary      更新队列配置
+// @Description  更新队列的运维参数（并发数、超时、重试等）
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int                  true "队列ID"
+// @Param        body body     queueUpdateRequest true "队列配置"
+// @Success      200  {object} models.Response{data=models.Queue} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "队列不存在"
+// @Router       /queue/{id} [patch]
 func (qc *QueueController) Update(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var req queueUpdateRequest
@@ -88,6 +123,16 @@ func (qc *QueueController) Update(c *gin.Context) {
 	respondOK(c, q)
 }
 
+// Delete 删除队列
+// @Summary      删除队列
+// @Description  删除队列及其所有任务
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "队列ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      500 {object} models.Response "删除失败"
+// @Router       /queue/{id} [delete]
 func (qc *QueueController) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if err := config.DB.Where("queue_id = ?", id).Delete(&models.QueueJob{}).Error; err != nil {
@@ -101,7 +146,16 @@ func (qc *QueueController) Delete(c *gin.Context) {
 	respondOK(c, true)
 }
 
-// Toggle 切换运行/暂停
+// Toggle 切换队列状态
+// @Summary      切换队列状态
+// @Description  切换队列的运行/暂停状态
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "队列ID"
+// @Success      200 {object} models.Response{data=models.Queue} "成功"
+// @Failure      404 {object} models.Response "队列不存在"
+// @Router       /queue/{id}/toggle [patch]
 func (qc *QueueController) Toggle(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var q models.Queue
@@ -121,7 +175,14 @@ func (qc *QueueController) Toggle(c *gin.Context) {
 	respondOK(c, q)
 }
 
-// Stats 队列与任务汇总
+// Stats 获取队列统计
+// @Summary      获取队列统计
+// @Description  获取队列和任务的汇总统计数据
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response "成功"
+// @Router       /queue/stats [get]
 func (qc *QueueController) Stats(c *gin.Context) {
 	var (
 		total, running, paused int64
@@ -160,7 +221,14 @@ func (qc *QueueController) Stats(c *gin.Context) {
 	})
 }
 
-// GetHandlers 列出代码侧已注册的 tube 名称（前端「已注册」徽标用）
+// GetHandlers 获取已注册处理器
+// @Summary      获取已注册处理器
+// @Description  列出代码侧已注册的队列处理器名称
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response{data=[]string} "成功"
+// @Router       /queue/handlers [get]
 func (qc *QueueController) GetHandlers(c *gin.Context) {
 	respondOK(c, queue.HandlerList())
 }
@@ -176,7 +244,20 @@ type bulkJobsRequest struct {
 	Items []jobRequest `json:"items"`
 }
 
-// GetJobs 分页查询某队列任务，支持状态 + 日期范围过滤
+// GetJobs 查询队列任务
+// @Summary      查询队列任务
+// @Description  分页查询指定队列的任务，支持状态和日期范围筛选
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id       path     int    true  "队列ID"
+// @Param        pageNo   query    int    false "页码"     default(1)
+// @Param        pageSize query    int    false "每页数量" default(10)
+// @Param        status   query    string false "状态（PENDING/RUNNING/SUCCESS/FAILED）"
+// @Param        from     query    string false "开始时间"
+// @Param        to       query    string false "结束时间"
+// @Success      200      {object} models.Response{data=models.PageData{pageData=[]models.QueueJob}} "成功"
+// @Router       /queue/{id}/jobs [get]
 func (qc *QueueController) GetJobs(c *gin.Context) {
 	queueID, _ := strconv.Atoi(c.Param("id"))
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
@@ -211,7 +292,19 @@ func (qc *QueueController) GetJobs(c *gin.Context) {
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
 
-// AddJob 投递一个任务到队列（debug / UI 用）
+// AddJob 投递单个任务
+// @Summary      投递单个任务
+// @Description  向指定队列投递一个任务
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int          true "队列ID"
+// @Param        body body     jobRequest   true "任务信息"
+// @Success      200  {object} models.Response{data=models.QueueJob} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "队列不存在"
+// @Router       /queue/{id}/job [post]
 func (qc *QueueController) AddJob(c *gin.Context) {
 	queueID, _ := strconv.Atoi(c.Param("id"))
 	var req jobRequest
@@ -245,7 +338,19 @@ func (qc *QueueController) AddJob(c *gin.Context) {
 	respondOK(c, job)
 }
 
-// BulkAddJobs 批量投递
+// BulkAddJobs 批量投递任务
+// @Summary      批量投递任务
+// @Description  向指定队列批量投递多个任务
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int              true "队列ID"
+// @Param        body body     bulkJobsRequest  true "任务列表"
+// @Success      200  {object} models.Response{data=int} "成功创建数量"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "队列不存在"
+// @Router       /queue/{id}/jobs/bulk [post]
 func (qc *QueueController) BulkAddJobs(c *gin.Context) {
 	queueID, _ := strconv.Atoi(c.Param("id"))
 	var req bulkJobsRequest
@@ -280,7 +385,16 @@ func (qc *QueueController) BulkAddJobs(c *gin.Context) {
 	respondOK(c, len(jobs))
 }
 
-// KickJob 复活单个 FAILED 任务为 PENDING
+// KickJob 重试单个任务
+// @Summary      重试单个任务
+// @Description  将单个FAILED任务重新设为PENDING状态
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Param        jobId  path     int true "任务ID"
+// @Success      200    {object} models.Response "成功"
+// @Failure      400    {object} models.Response "操作失败"
+// @Router       /queue/job/{jobId}/kick [post]
 func (qc *QueueController) KickJob(c *gin.Context) {
 	jobID, _ := strconv.Atoi(c.Param("jobId"))
 	if err := queue.Default().Kick(uint(jobID)); err != nil {
@@ -290,7 +404,16 @@ func (qc *QueueController) KickJob(c *gin.Context) {
 	respondOK(c, true)
 }
 
-// KickAll 复活某队列内所有 FAILED 任务为 PENDING
+// KickAll 重试队列所有失败任务
+// @Summary      重试队列所有失败任务
+// @Description  将指定队列内所有FAILED任务重新设为PENDING
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "队列ID"
+// @Success      200 {object} models.Response "成功，data包含affected字段"
+// @Failure      500 {object} models.Response "操作失败"
+// @Router       /queue/{id}/kick [post]
 func (qc *QueueController) KickAll(c *gin.Context) {
 	queueID, _ := strconv.Atoi(c.Param("id"))
 	n, err := queue.Default().KickAll(uint(queueID))
@@ -302,6 +425,15 @@ func (qc *QueueController) KickAll(c *gin.Context) {
 }
 
 // DeleteJob 删除单个任务
+// @Summary      删除单个任务
+// @Description  删除指定的队列任务
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Param        jobId  path     int true "任务ID"
+// @Success      200    {object} models.Response "成功"
+// @Failure      500    {object} models.Response "删除失败"
+// @Router       /queue/job/{jobId} [delete]
 func (qc *QueueController) DeleteJob(c *gin.Context) {
 	jobID, _ := strconv.Atoi(c.Param("jobId"))
 	if err := config.DB.Delete(&models.QueueJob{}, jobID).Error; err != nil {
@@ -311,7 +443,18 @@ func (qc *QueueController) DeleteJob(c *gin.Context) {
 	respondOK(c, true)
 }
 
-// ClearJobs 清空任务；支持 status / before 过滤
+// ClearJobs 清空队列任务
+// @Summary      清空队列任务
+// @Description  清空指定队列的任务，支持按状态和时间过滤
+// @Tags         消息队列
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id      path     int    true  "队列ID"
+// @Param        status  query    string false "状态过滤"
+// @Param        before  query    string false "截止时间"
+// @Success      200     {object} models.Response "成功"
+// @Failure      500     {object} models.Response "清空失败"
+// @Router       /queue/{id}/jobs [delete]
 func (qc *QueueController) ClearJobs(c *gin.Context) {
 	queueID, _ := strconv.Atoi(c.Param("id"))
 	status := c.Query("status")

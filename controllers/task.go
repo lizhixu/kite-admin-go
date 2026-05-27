@@ -13,6 +13,7 @@ import (
 
 type TaskController struct{}
 
+// taskRequest 创建/更新定时任务请求
 type taskRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Spec        string `json:"spec" binding:"required"`
@@ -26,6 +27,18 @@ type taskRequest struct {
 	Description string `json:"description"`
 }
 
+// GetPage 分页查询任务
+// @Summary      分页查询任务
+// @Description  分页查询定时任务列表，支持按名称和类型筛选
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Produce      json
+// @Param        pageNo   query    int    false "页码"     default(1)
+// @Param        pageSize query    int    false "每页数量" default(10)
+// @Param        name     query    string false "任务名称（模糊搜索）"
+// @Param        type     query    string false "任务类型（HTTP/SHELL/FUNC）"
+// @Success      200      {object} models.Response{data=models.PageData{pageData=[]models.Task}} "成功"
+// @Router       /task/page [get]
 func (tc *TaskController) GetPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -52,6 +65,17 @@ func (tc *TaskController) GetPage(c *gin.Context) {
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
 
+// Create 创建定时任务
+// @Summary      创建定时任务
+// @Description  创建新的定时任务
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     taskRequest true "任务信息"
+// @Success      200  {object} models.Response{data=models.Task} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /task [post]
 func (tc *TaskController) Create(c *gin.Context) {
 	var req taskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -86,6 +110,19 @@ func (tc *TaskController) Create(c *gin.Context) {
 	respondOK(c, task)
 }
 
+// Update 更新定时任务
+// @Summary      更新定时任务
+// @Description  更新指定定时任务的信息
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int           true "任务ID"
+// @Param        body body     taskRequest true "任务信息"
+// @Success      200  {object} models.Response{data=models.Task} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "任务不存在"
+// @Router       /task/{id} [patch]
 func (tc *TaskController) Update(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var req taskRequest
@@ -132,6 +169,16 @@ func (tc *TaskController) Update(c *gin.Context) {
 	respondOK(c, task)
 }
 
+// Delete 删除定时任务
+// @Summary      删除定时任务
+// @Description  删除指定定时任务
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "任务ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      500 {object} models.Response "删除失败"
+// @Router       /task/{id} [delete]
 func (tc *TaskController) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if err := config.DB.Delete(&models.Task{}, id).Error; err != nil {
@@ -142,7 +189,16 @@ func (tc *TaskController) Delete(c *gin.Context) {
 	respondOK(c, true)
 }
 
-// Toggle 切换启用/停用状态
+// Toggle 切换任务启用状态
+// @Summary      切换任务启用状态
+// @Description  切换指定任务的启用/停用状态
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "任务ID"
+// @Success      200 {object} models.Response{data=models.Task} "成功"
+// @Failure      404 {object} models.Response "任务不存在"
+// @Router       /task/{id}/toggle [patch]
 func (tc *TaskController) Toggle(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var task models.Task
@@ -166,7 +222,16 @@ func (tc *TaskController) Toggle(c *gin.Context) {
 	respondOK(c, task)
 }
 
-// Run 立即手动触发一次
+// Run 手动执行任务
+// @Summary      手动执行任务
+// @Description  立即手动触发一次任务执行
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "任务ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      500 {object} models.Response "执行失败"
+// @Router       /task/{id}/run [post]
 func (tc *TaskController) Run(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if err := scheduler.Default().RunOnce(uint(id)); err != nil {
@@ -176,7 +241,19 @@ func (tc *TaskController) Run(c *gin.Context) {
 	respondOK(c, true)
 }
 
-// GetLogs 按任务ID分页查询执行日志
+// GetLogs 查询任务日志
+// @Summary      查询任务日志
+// @Description  分页查询任务执行日志，支持按任务ID、状态、触发方式筛选
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Produce      json
+// @Param        pageNo   query    int    false "页码"     default(1)
+// @Param        pageSize query    int    false "每页数量" default(10)
+// @Param        taskId   query    string false "任务ID"
+// @Param        status   query    string false "状态（SUCCESS/FAILED/TIMEOUT）"
+// @Param        trigger  query    string false "触发方式（CRON/MANUAL）"
+// @Success      200      {object} models.Response{data=models.PageData{pageData=[]models.TaskLog}} "成功"
+// @Router       /task/log/page [get]
 func (tc *TaskController) GetLogs(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -206,12 +283,26 @@ func (tc *TaskController) GetLogs(c *gin.Context) {
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
 
-// GetFuncs 列出内置函数清单（用于前端选择）
+// GetFuncs 获取内置函数列表
+// @Summary      获取内置函数列表
+// @Description  列出所有可用的内置函数（FUNC类型任务使用）
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response{data=[]string} "成功"
+// @Router       /task/funcs [get]
 func (tc *TaskController) GetFuncs(c *gin.Context) {
 	respondOK(c, scheduler.FuncList())
 }
 
-// Stats 返回任务总数、运行中、成功/失败次数等仪表盘数据
+// Stats 获取任务统计
+// @Summary      获取任务统计
+// @Description  获取任务总数、启用数、今日执行统计和最近执行记录
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response "成功"
+// @Router       /task/stats [get]
 func (tc *TaskController) Stats(c *gin.Context) {
 	var (
 		total, enabled, disabled                            int64
@@ -245,7 +336,17 @@ func (tc *TaskController) Stats(c *gin.Context) {
 	})
 }
 
-// PreviewNext 返回 cron 表达式接下来 n 次的执行时间，供前端可视化
+// PreviewNext 预览Cron表达式
+// @Summary      预览Cron表达式
+// @Description  返回cron表达式接下来n次的执行时间
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Produce      json
+// @Param        spec query    string true  "Cron表达式"
+// @Param        n    query    int    false "预览次数" default(5)
+// @Success      200  {object} models.Response{data=[]string} "成功"
+// @Failure      400  {object} models.Response "表达式无效"
+// @Router       /task/preview-next [get]
 func (tc *TaskController) PreviewNext(c *gin.Context) {
 	spec := c.Query("spec")
 	n, _ := strconv.Atoi(c.DefaultQuery("n", "5"))
@@ -261,11 +362,28 @@ func (tc *TaskController) PreviewNext(c *gin.Context) {
 	respondOK(c, times)
 }
 
+// bulkIDsRequest 批量ID请求
 type bulkIDsRequest struct {
 	IDs []uint `json:"ids" binding:"required"`
 }
 
-// BulkDelete 批量删除
+// bulkToggleRequest 批量切换启用状态请求
+type bulkToggleRequest struct {
+	IDs     []uint `json:"ids" binding:"required"`
+	Enabled bool   `json:"enabled"`
+}
+
+// BulkDelete 批量删除任务
+// @Summary      批量删除任务
+// @Description  批量删除指定的定时任务
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     bulkIDsRequest true "任务ID列表"
+// @Success      200  {object} models.Response{data=int} "成功删除数量"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /task/bulk/delete [post]
 func (tc *TaskController) BulkDelete(c *gin.Context) {
 	var req bulkIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
@@ -282,12 +400,19 @@ func (tc *TaskController) BulkDelete(c *gin.Context) {
 	respondOK(c, len(req.IDs))
 }
 
-// BulkToggle 批量启用/停用，body: {ids, enabled}
+// BulkToggle 批量切换启用状态
+// @Summary      批量切换启用状态
+// @Description  批量启用或停用定时任务
+// @Tags         定时任务
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     bulkToggleRequest true "任务ID列表和目标状态"
+// @Success      200  {object} models.Response{data=int} "影响数量"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /task/bulk/toggle [post]
 func (tc *TaskController) BulkToggle(c *gin.Context) {
-	var req struct {
-		IDs     []uint `json:"ids" binding:"required"`
-		Enabled bool   `json:"enabled"`
-	}
+	var req bulkToggleRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
 		respondErr(c, 400, "ids required")
 		return

@@ -1,0 +1,3587 @@
+basePath: /
+definitions:
+  controllers.LoginRequest:
+    properties:
+      captcha:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - captcha
+    - password
+    - username
+    type: object
+  controllers.bulkIDsRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - ids
+    type: object
+  controllers.bulkJobsRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/controllers.jobRequest'
+        type: array
+    type: object
+  controllers.bulkToggleRequest:
+    properties:
+      enabled:
+        type: boolean
+      ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - ids
+    type: object
+  controllers.createFolderRequest:
+    properties:
+      configId:
+        type: integer
+      name:
+        type: string
+      parentId:
+        type: integer
+    required:
+    - configId
+    - name
+    type: object
+  controllers.createMessageRequest:
+    properties:
+      content:
+        type: string
+      roleIds:
+        items:
+          type: integer
+        type: array
+      targetType:
+        enum:
+        - ALL
+        - USER
+        - ROLE
+        type: string
+      title:
+        type: string
+      type:
+        enum:
+        - SYSTEM
+        - NOTICE
+        - ANNOUNCEMENT
+        type: string
+      userIds:
+        items:
+          type: integer
+        type: array
+    required:
+    - content
+    - targetType
+    - title
+    - type
+    type: object
+  controllers.createPermissionRequest:
+    properties:
+      code:
+        type: string
+      component:
+        type: string
+      description:
+        type: string
+      enable:
+        type: boolean
+      icon:
+        type: string
+      keepAlive:
+        type: boolean
+      layout:
+        type: string
+      method:
+        type: string
+      name:
+        type: string
+      order:
+        type: integer
+      parentId:
+        type: integer
+      path:
+        type: string
+      redirect:
+        type: string
+      show:
+        type: boolean
+      type:
+        type: string
+    required:
+    - code
+    - name
+    - type
+    type: object
+  controllers.createRoleRequest:
+    properties:
+      code:
+        type: string
+      enable:
+        type: boolean
+      name:
+        type: string
+      permissionIds:
+        items:
+          type: integer
+        type: array
+    required:
+    - code
+    - name
+    type: object
+  controllers.createUserRequest:
+    properties:
+      address:
+        type: string
+      avatar:
+        type: string
+      email:
+        type: string
+      enable:
+        type: boolean
+      gender:
+        type: integer
+      nickName:
+        type: string
+      password:
+        type: string
+      roleIds:
+        items:
+          type: integer
+        type: array
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  controllers.emailConfigRequest:
+    properties:
+      enabled:
+        type: boolean
+      fromEmail:
+        type: string
+      fromName:
+        type: string
+      host:
+        type: string
+      password:
+        type: string
+      port:
+        type: integer
+      username:
+        type: string
+    required:
+    - fromEmail
+    - fromName
+    - host
+    - port
+    - username
+    type: object
+  controllers.jobRequest:
+    properties:
+      maxRetries:
+        type: integer
+      payload:
+        type: string
+    type: object
+  controllers.moveMediaRequest:
+    properties:
+      folderId:
+        type: integer
+      ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - ids
+    type: object
+  controllers.previewEmailTemplateRequest:
+    properties:
+      vars:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  controllers.queueUpdateRequest:
+    properties:
+      concurrency:
+        type: integer
+      description:
+        type: string
+      maxRetries:
+        type: integer
+      status:
+        type: string
+      timeout:
+        type: integer
+    type: object
+  controllers.renameFolderRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  controllers.resetPasswordRequest:
+    properties:
+      password:
+        type: string
+    required:
+    - password
+    type: object
+  controllers.roleUsersRequest:
+    properties:
+      userIds:
+        items:
+          type: integer
+        type: array
+    required:
+    - userIds
+    type: object
+  controllers.storageConfigRequest:
+    properties:
+      accessKey:
+        type: string
+      allowExtensions:
+        type: string
+      bucket:
+        type: string
+      customDomain:
+        type: string
+      enabled:
+        type: boolean
+      endpoint:
+        type: string
+      isDefault:
+        type: boolean
+      localDir:
+        type: string
+      maxSizeMB:
+        type: integer
+      name:
+        type: string
+      publicPrefix:
+        type: string
+      region:
+        type: string
+      secretKey:
+        type: string
+      type:
+        enum:
+        - LOCAL
+        - S3
+        type: string
+      useSSL:
+        type: boolean
+    required:
+    - name
+    - type
+    type: object
+  controllers.systemConfigRequest:
+    properties:
+      copyright:
+        type: string
+      favicon:
+        type: string
+      logo:
+        type: string
+      siteName:
+        type: string
+    required:
+    - siteName
+    type: object
+  controllers.taskRequest:
+    properties:
+      command:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      httpBody:
+        type: string
+      httpHeaders:
+        type: string
+      httpMethod:
+        type: string
+      name:
+        type: string
+      spec:
+        type: string
+      timeout:
+        type: integer
+      type:
+        enum:
+        - HTTP
+        - SHELL
+        - FUNC
+        type: string
+    required:
+    - command
+    - name
+    - spec
+    - type
+    type: object
+  controllers.updateEmailTemplateRequest:
+    properties:
+      content:
+        type: string
+      name:
+        type: string
+      subject:
+        type: string
+    required:
+    - content
+    - name
+    - subject
+    type: object
+  controllers.updatePermissionRequest:
+    properties:
+      code:
+        type: string
+      component:
+        type: string
+      description:
+        type: string
+      enable:
+        type: boolean
+      icon:
+        type: string
+      keepAlive:
+        type: boolean
+      layout:
+        type: string
+      method:
+        type: string
+      name:
+        type: string
+      order:
+        type: integer
+      parentId:
+        type: integer
+      path:
+        type: string
+      redirect:
+        type: string
+      show:
+        type: boolean
+      type:
+        type: string
+    type: object
+  controllers.updateProfileRequest:
+    properties:
+      address:
+        type: string
+      avatar:
+        type: string
+      email:
+        type: string
+      gender:
+        type: integer
+      nickName:
+        type: string
+    type: object
+  controllers.updateRoleRequest:
+    properties:
+      code:
+        type: string
+      enable:
+        type: boolean
+      name:
+        type: string
+      permissionIds:
+        items:
+          type: integer
+        type: array
+    type: object
+  controllers.updateUserRequest:
+    properties:
+      address:
+        type: string
+      avatar:
+        type: string
+      email:
+        type: string
+      enable:
+        type: boolean
+      gender:
+        type: integer
+      nickName:
+        type: string
+      roleIds:
+        items:
+          type: integer
+        type: array
+      username:
+        type: string
+    type: object
+  models.EmailConfig:
+    properties:
+      enabled:
+        type: boolean
+      fromEmail:
+        type: string
+      fromName:
+        type: string
+      host:
+        type: string
+      id:
+        type: integer
+      port:
+        type: integer
+      username:
+        type: string
+    type: object
+  models.EmailTemplate:
+    properties:
+      content:
+        type: string
+      createTime:
+        type: string
+      id:
+        type: integer
+      isBuiltin:
+        type: boolean
+      name:
+        type: string
+      scene:
+        type: string
+      subject:
+        type: string
+      updateTime:
+        type: string
+    type: object
+  models.LoginLog:
+    properties:
+      createTime:
+        type: string
+      id:
+        type: integer
+      ip:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+      userAgent:
+        type: string
+      userId:
+        type: integer
+      username:
+        type: string
+    type: object
+  models.Media:
+    properties:
+      configId:
+        type: integer
+      createTime:
+        type: string
+      ext:
+        type: string
+      filename:
+        type: string
+      folderId:
+        description: 0 = 该存储的根目录
+        type: integer
+      folderPath:
+        description: 冗余，便于前端展示与过滤
+        type: string
+      id:
+        type: integer
+      mimeType:
+        type: string
+      size:
+        type: integer
+      storageKey:
+        type: string
+      storageType:
+        description: LOCAL / S3
+        type: string
+      uploaderId:
+        type: integer
+      uploaderName:
+        type: string
+      url:
+        type: string
+    type: object
+  models.MediaFolder:
+    properties:
+      configId:
+        type: integer
+      createTime:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      parentId:
+        description: nil = 根
+        type: integer
+      path:
+        description: 如 "photos/2024"
+        type: string
+      updateTime:
+        type: string
+    type: object
+  models.Message:
+    properties:
+      content:
+        type: string
+      createTime:
+        type: string
+      id:
+        type: integer
+      senderId:
+        type: integer
+      senderName:
+        type: string
+      status:
+        type: string
+      targetRoles:
+        description: JSON array of role IDs, e.g. "[1,2]"
+        type: string
+      targetType:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      updateTime:
+        type: string
+    type: object
+  models.PageData:
+    properties:
+      pageData: {}
+      total:
+        type: integer
+    type: object
+  models.Permission:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/models.Permission'
+        type: array
+      code:
+        type: string
+      component:
+        type: string
+      description:
+        type: string
+      enable:
+        type: boolean
+      icon:
+        type: string
+      id:
+        type: integer
+      keepAlive:
+        type: boolean
+      layout:
+        type: string
+      method:
+        type: string
+      name:
+        type: string
+      order:
+        type: integer
+      parentId:
+        type: integer
+      path:
+        type: string
+      redirect:
+        type: string
+      show:
+        type: boolean
+      type:
+        description: MENU, BUTTON
+        type: string
+    type: object
+  models.Profile:
+    properties:
+      address:
+        type: string
+      avatar:
+        type: string
+      email:
+        type: string
+      gender:
+        type: integer
+      id:
+        type: integer
+      nickName:
+        type: string
+      userId:
+        type: integer
+    type: object
+  models.Queue:
+    properties:
+      completedJobs:
+        type: integer
+      concurrency:
+        type: integer
+      createTime:
+        type: string
+      description:
+        type: string
+      failedJobs:
+        type: integer
+      id:
+        type: integer
+      maxRetries:
+        type: integer
+      name:
+        type: string
+      status:
+        description: RUNNING / PAUSED
+        type: string
+      timeout:
+        type: integer
+      totalJobs:
+        type: integer
+      updateTime:
+        type: string
+    type: object
+  models.QueueJob:
+    properties:
+      completedAt:
+        type: string
+      createdAt:
+        type: string
+      duration:
+        type: integer
+      error:
+        type: string
+      id:
+        type: integer
+      maxRetries:
+        type: integer
+      payload:
+        type: string
+      queueId:
+        type: integer
+      result:
+        type: string
+      retryCount:
+        type: integer
+      startedAt:
+        type: string
+      status:
+        type: string
+    type: object
+  models.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+      originUrl:
+        type: string
+    type: object
+  models.Role:
+    properties:
+      code:
+        type: string
+      enable:
+        type: boolean
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  models.StorageConfig:
+    properties:
+      accessKey:
+        type: string
+      allowExtensions:
+        description: 通用
+        type: string
+      bucket:
+        type: string
+      createTime:
+        type: string
+      customDomain:
+        type: string
+      enabled:
+        type: boolean
+      endpoint:
+        description: S3
+        type: string
+      id:
+        type: integer
+      isDefault:
+        type: boolean
+      localDir:
+        description: LOCAL
+        type: string
+      maxSizeMB:
+        type: integer
+      name:
+        type: string
+      publicPrefix:
+        type: string
+      region:
+        type: string
+      type:
+        description: LOCAL / S3
+        type: string
+      updateTime:
+        type: string
+      useSSL:
+        type: boolean
+    type: object
+  models.SysLog:
+    properties:
+      createTime:
+        type: string
+      id:
+        type: integer
+      ip:
+        type: string
+      latency:
+        description: in milliseconds
+        type: integer
+      method:
+        type: string
+      params:
+        type: string
+      path:
+        type: string
+      response:
+        type: string
+      statusCode:
+        type: integer
+      userAgent:
+        type: string
+      userId:
+        type: integer
+      username:
+        type: string
+    type: object
+  models.SystemConfig:
+    properties:
+      copyright:
+        type: string
+      createTime:
+        type: string
+      favicon:
+        type: string
+      id:
+        type: integer
+      logo:
+        type: string
+      siteName:
+        type: string
+      updateTime:
+        type: string
+    type: object
+  models.Task:
+    properties:
+      command:
+        description: URL / shell 命令 / 内置函数名
+        type: string
+      createTime:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      httpBody:
+        type: string
+      httpHeaders:
+        description: JSON 字符串：{"K":"V"}
+        type: string
+      httpMethod:
+        type: string
+      id:
+        type: integer
+      lastRunAt:
+        type: string
+      name:
+        type: string
+      nextRunAt:
+        type: string
+      spec:
+        description: 标准 5 段 cron 表达式
+        type: string
+      timeout:
+        description: 秒
+        type: integer
+      type:
+        description: HTTP / SHELL / FUNC
+        type: string
+      updateTime:
+        type: string
+    type: object
+  models.TaskLog:
+    properties:
+      duration:
+        description: 毫秒
+        type: integer
+      endTime:
+        type: string
+      error:
+        type: string
+      id:
+        type: integer
+      output:
+        type: string
+      startTime:
+        type: string
+      status:
+        description: SUCCESS / FAILED / TIMEOUT
+        type: string
+      steps:
+        description: 'JSON: [{time, level, message}]'
+        type: string
+      taskId:
+        type: integer
+      taskName:
+        type: string
+      trigger:
+        description: CRON / MANUAL
+        type: string
+    type: object
+  models.User:
+    properties:
+      createTime:
+        type: string
+      enable:
+        type: boolean
+      id:
+        type: integer
+      profile:
+        $ref: '#/definitions/models.Profile'
+      roles:
+        items:
+          $ref: '#/definitions/models.Role'
+        type: array
+      updateTime:
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: kite-admin 后台管理系统 API 文档
+  title: Kite Admin API
+  version: "1.0"
+paths:
+  /auth/captcha:
+    get:
+      description: 获取图形验证码，验证码ID通过Cookie返回
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: 验证码图片
+          schema:
+            type: string
+      summary: 获取验证码
+      tags:
+      - 认证管理
+  /auth/current-role/switch/{roleCode}:
+    post:
+      description: 切换当前用户的角色，返回新的Token
+      parameters:
+      - description: 角色编码
+        in: path
+        name: roleCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功，data包含accessToken
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 生成Token失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 切换当前角色
+      tags:
+      - 认证管理
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 通过用户名、密码和验证码登录系统
+      parameters:
+      - description: 登录信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功，data包含accessToken
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      summary: 用户登录
+      tags:
+      - 认证管理
+  /auth/logout:
+    post:
+      description: 退出登录（客户端应清除Token）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 用户登出
+      tags:
+      - 认证管理
+  /email-template/{id}:
+    get:
+      description: 根据ID获取邮件模板详情
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.EmailTemplate'
+              type: object
+        "404":
+          description: 模板不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取邮件模板详情
+      tags:
+      - 邮件模板
+    put:
+      consumes:
+      - application/json
+      description: 更新指定邮件模板的内容
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 模板信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.updateEmailTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.EmailTemplate'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 模板不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新邮件模板
+      tags:
+      - 邮件模板
+  /email-template/{id}/preview:
+    post:
+      consumes:
+      - application/json
+      description: 使用变量渲染邮件模板并返回预览
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 模板变量
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/controllers.previewEmailTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功，data包含subject和htmlBody
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 模板不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 预览邮件模板
+      tags:
+      - 邮件模板
+  /email-template/list:
+    get:
+      description: 获取所有邮件模板
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.EmailTemplate'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取邮件模板列表
+      tags:
+      - 邮件模板
+  /email/config:
+    get:
+      description: 获取当前邮件服务配置
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.EmailConfig'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取邮件配置
+      tags:
+      - 邮件配置
+    put:
+      consumes:
+      - application/json
+      description: 创建或更新邮件服务配置
+      parameters:
+      - description: 配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.emailConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.EmailConfig'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 保存邮件配置
+      tags:
+      - 邮件配置
+  /email/config/test:
+    post:
+      description: 发送测试邮件到当前用户的邮箱
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 测试邮件已加入队列
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 配置未启用或未绑定邮箱
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 测试邮件配置
+      tags:
+      - 邮件配置
+  /loginlog/list:
+    get:
+      description: 分页查询登录成功日志，支持按用户名筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 用户名（模糊搜索）
+        in: query
+        name: username
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/models.PageData'
+                  - properties:
+                      pageData:
+                        items:
+                          $ref: '#/definitions/models.LoginLog'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 查询登录日志
+      tags:
+      - 登录日志
+  /media/{id}:
+    delete:
+      description: 删除指定的媒体文件
+      parameters:
+      - description: 媒体ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 媒体不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除媒体
+      tags:
+      - 媒体管理
+  /media/bulk/delete:
+    post:
+      consumes:
+      - application/json
+      description: 批量删除指定的媒体文件
+      parameters:
+      - description: 媒体ID列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.bulkIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功删除数量
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  type: integer
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量删除媒体
+      tags:
+      - 媒体管理
+  /media/folder:
+    post:
+      consumes:
+      - application/json
+      description: 在指定存储配置下创建新文件夹
+      parameters:
+      - description: 文件夹信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.createFolderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MediaFolder'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建文件夹
+      tags:
+      - 媒体文件夹
+  /media/folder/{id}:
+    delete:
+      description: 删除文件夹，默认仅允许空文件夹，传cascade=1可级联删除
+      parameters:
+      - description: 文件夹ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 是否级联删除（1=是）
+        in: query
+        name: cascade
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 文件夹不为空
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 文件夹不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除文件夹
+      tags:
+      - 媒体文件夹
+    patch:
+      consumes:
+      - application/json
+      description: 重命名文件夹，联动更新所有后代路径
+      parameters:
+      - description: 文件夹ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 新名称
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.renameFolderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MediaFolder'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 文件夹不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 重命名文件夹
+      tags:
+      - 媒体文件夹
+  /media/folder/resolve:
+    get:
+      description: 按路径解析或自动创建文件夹，返回最终文件夹对象
+      parameters:
+      - description: 存储配置ID
+        in: query
+        name: configId
+        required: true
+        type: string
+      - description: 文件夹路径（如 avatars/2024）
+        in: query
+        name: path
+        required: true
+        type: string
+      - description: 不存在时是否自动创建（1=是）
+        in: query
+        name: autoCreate
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.MediaFolder'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 文件夹不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 按路径解析文件夹
+      tags:
+      - 媒体文件夹
+  /media/folder/tree:
+    get:
+      description: 获取指定存储配置下的文件夹列表（扁平结构）
+      parameters:
+      - description: 存储配置ID
+        in: query
+        name: configId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.MediaFolder'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取文件夹列表
+      tags:
+      - 媒体文件夹
+  /media/move:
+    post:
+      consumes:
+      - application/json
+      description: 批量移动媒体文件到目标文件夹
+      parameters:
+      - description: 媒体ID列表和目标文件夹
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.moveMediaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 移动数量
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  type: integer
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 移动媒体文件
+      tags:
+      - 媒体管理
+  /media/page:
+    get:
+      description: 分页查询媒体文件列表，支持按文件名、MIME类型、存储类型等筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 24
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 文件名（模糊搜索）
+        in: query
+        name: filename
+        type: string
+      - description: MIME类型前缀（如 image/）
+        in: query
+        name: mimePrefix
+        type: string
+      - description: 存储类型（LOCAL/S3）
+        in: query
+        name: storageType
+        type: string
+      - description: 存储配置ID
+        in: query
+        name: configId
+        type: string
+      - description: 文件夹ID
+        in: query
+        name: folderId
+        type: string
+      - description: 范围（mine/all）
+        in: query
+        name: scope
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/models.PageData'
+                  - properties:
+                      pageData:
+                        items:
+                          $ref: '#/definitions/models.Media'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 分页查询媒体
+      tags:
+      - 媒体管理
+  /media/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传文件到指定存储配置和文件夹
+      parameters:
+      - description: 存储配置ID
+        in: formData
+        name: configId
+        type: string
+      - description: 文件夹ID
+        in: formData
+        name: folderId
+        type: string
+      - description: 上传文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Media'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 上传文件
+      tags:
+      - 媒体管理
+  /message:
+    post:
+      consumes:
+      - application/json
+      description: 创建并发送消息，支持按用户、角色或全员发送
+      parameters:
+      - description: 消息信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.createMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Message'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 发送消息
+      tags:
+      - 消息管理
+  /message/{id}:
+    delete:
+      description: 删除指定消息及其收件人记录
+      parameters:
+      - description: 消息ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 删除失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除消息
+      tags:
+      - 消息管理
+  /message/{id}/read:
+    patch:
+      description: 标记指定消息为已读
+      parameters:
+      - description: 消息ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 消息不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 标记消息已读
+      tags:
+      - 消息管理
+  /message/bulk/delete:
+    post:
+      consumes:
+      - application/json
+      description: 批量删除指定消息
+      parameters:
+      - description: 消息ID列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.bulkIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功删除数量
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  type: integer
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量删除消息
+      tags:
+      - 消息管理
+  /message/bulk/read:
+    patch:
+      consumes:
+      - application/json
+      description: 批量标记指定消息为已读
+      parameters:
+      - description: 消息ID列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.bulkIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量标记已读
+      tags:
+      - 消息管理
+  /message/mine:
+    get:
+      description: 获取当前用户收到的消息列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取我的消息
+      tags:
+      - 消息管理
+  /message/page:
+    get:
+      description: 分页查询消息列表，支持按标题和类型筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 标题（模糊搜索）
+        in: query
+        name: title
+        type: string
+      - description: 类型（SYSTEM/NOTICE/ANNOUNCEMENT）
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/models.PageData'
+                  - properties:
+                      pageData:
+                        items:
+                          $ref: '#/definitions/models.Message'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 分页查询消息
+      tags:
+      - 消息管理
+  /message/read/all:
+    patch:
+      description: 将当前用户所有未读消息标记为已读
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 全部标记已读
+      tags:
+      - 消息管理
+  /message/sse:
+    get:
+      description: 建立SSE连接，实时接收新消息推送
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE事件流
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 消息推送SSE连接
+      tags:
+      - 消息管理
+  /message/unread/count:
+    get:
+      description: 获取当前用户的未读消息数量
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功，data包含count字段
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取未读消息数
+      tags:
+      - 消息管理
+  /permission:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的权限节点（菜单、按钮等）
+      parameters:
+      - description: 权限信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.createPermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Permission'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建权限
+      tags:
+      - 权限管理
+  /permission/{id}:
+    delete:
+      description: 删除指定权限节点（需先删除子权限）
+      parameters:
+      - description: 权限ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 存在子权限，无法删除
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除权限
+      tags:
+      - 权限管理
+    patch:
+      consumes:
+      - application/json
+      description: 更新指定权限节点的信息
+      parameters:
+      - description: 权限ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 权限信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.updatePermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新权限
+      tags:
+      - 权限管理
+  /permission/button/{parentId}:
+    get:
+      description: 获取指定父级下的所有BUTTON类型权限
+      parameters:
+      - description: 父级权限ID
+        in: path
+        name: parentId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Permission'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取子按钮权限
+      tags:
+      - 权限管理
+  /permission/menu/tree:
+    get:
+      description: 获取所有MENU类型的权限树
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Permission'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取菜单树
+      tags:
+      - 权限管理
+  /permission/tree:
+    get:
+      description: 获取所有权限的完整树形结构
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Permission'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取完整权限树
+      tags:
+      - 权限管理
+  /queue/{id}:
+    delete:
+      description: 删除队列及其所有任务
+      parameters:
+      - description: 队列ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 删除失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除队列
+      tags:
+      - 消息队列
+    get:
+      description: 根据ID获取队列详情
+      parameters:
+      - description: 队列ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Queue'
+              type: object
+        "404":
+          description: 队列不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取队列详情
+      tags:
+      - 消息队列
+    patch:
+      consumes:
+      - application/json
+      description: 更新队列的运维参数（并发数、超时、重试等）
+      parameters:
+      - description: 队列ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 队列配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.queueUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Queue'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 队列不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新队列配置
+      tags:
+      - 消息队列
+  /queue/{id}/job:
+    post:
+      consumes:
+      - application/json
+      description: 向指定队列投递一个任务
+      parameters:
+      - description: 队列ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.jobRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.QueueJob'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 队列不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 投递单个任务
+      tags:
+      - 消息队列
+  /queue/{id}/jobs:
+    delete:
+      description: 清空指定队列的任务，支持按状态和时间过滤
+      parameters:
+      - description: 队列ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 状态过滤
+        in: query
+        name: status
+        type: string
+      - description: 截止时间
+        in: query
+        name: before
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 清空失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 清空队列任务
+      tags:
+      - 消息队列
+    get:
+      description: 分页查询指定队列的任务，支持状态和日期范围筛选
+      parameters:
+      - description: 队列ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 状态（PENDING/RUNNING/SUCCESS/FAILED）
+        in: query
+        name: status
+        type: string
+      - description: 开始时间
+        in: query
+        name: from
+        type: string
+      - description: 结束时间
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/models.PageData'
+                  - properties:
+                      pageData:
+                        items:
+                          $ref: '#/definitions/models.QueueJob'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 查询队列任务
+      tags:
+      - 消息队列
+  /queue/{id}/jobs/bulk:
+    post:
+      consumes:
+      - application/json
+      description: 向指定队列批量投递多个任务
+      parameters:
+      - description: 队列ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.bulkJobsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功创建数量
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  type: integer
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 队列不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量投递任务
+      tags:
+      - 消息队列
+  /queue/{id}/kick:
+    post:
+      description: 将指定队列内所有FAILED任务重新设为PENDING
+      parameters:
+      - description: 队列ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功，data包含affected字段
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 操作失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 重试队列所有失败任务
+      tags:
+      - 消息队列
+  /queue/{id}/toggle:
+    patch:
+      description: 切换队列的运行/暂停状态
+      parameters:
+      - description: 队列ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Queue'
+              type: object
+        "404":
+          description: 队列不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 切换队列状态
+      tags:
+      - 消息队列
+  /queue/handlers:
+    get:
+      description: 列出代码侧已注册的队列处理器名称
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取已注册处理器
+      tags:
+      - 消息队列
+  /queue/job/{jobId}:
+    delete:
+      description: 删除指定的队列任务
+      parameters:
+      - description: 任务ID
+        in: path
+        name: jobId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 删除失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除单个任务
+      tags:
+      - 消息队列
+  /queue/job/{jobId}/kick:
+    post:
+      description: 将单个FAILED任务重新设为PENDING状态
+      parameters:
+      - description: 任务ID
+        in: path
+        name: jobId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 操作失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 重试单个任务
+      tags:
+      - 消息队列
+  /queue/page:
+    get:
+      description: 分页查询队列列表，支持按名称和状态筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 队列名称（模糊搜索）
+        in: query
+        name: name
+        type: string
+      - description: 状态（RUNNING/PAUSED）
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/models.PageData'
+                  - properties:
+                      pageData:
+                        items:
+                          $ref: '#/definitions/models.Queue'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 分页查询队列
+      tags:
+      - 消息队列
+  /queue/stats:
+    get:
+      description: 获取队列和任务的汇总统计数据
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取队列统计
+      tags:
+      - 消息队列
+  /role:
+    get:
+      description: 获取所有启用状态的角色列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Role'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取所有启用角色
+      tags:
+      - 角色管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新角色，可同时分配权限
+      parameters:
+      - description: 角色信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.createRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Role'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建角色
+      tags:
+      - 角色管理
+  /role/{id}:
+    delete:
+      description: 删除指定角色（SUPER_ADMIN角色不可删除）
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 不可删除超级管理员角色
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除角色
+      tags:
+      - 角色管理
+    patch:
+      consumes:
+      - application/json
+      description: 更新角色信息和权限关联
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 角色信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.updateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新角色
+      tags:
+      - 角色管理
+  /role/page:
+    get:
+      description: 分页查询角色列表，支持按名称搜索
+      parameters:
+      - description: 角色名称（模糊搜索）
+        in: query
+        name: name
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.PageData'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 分页查询角色
+      tags:
+      - 角色管理
+  /role/permissions/tree:
+    get:
+      description: 根据当前登录用户的角色获取权限树（SUPER_ADMIN返回全部）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Permission'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取当前角色权限树
+      tags:
+      - 权限管理
+  /role/users/add/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: 向指定角色添加用户
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户ID列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.roleUsersRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 添加角色用户
+      tags:
+      - 角色管理
+  /role/users/remove/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: 从指定角色移除用户
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户ID列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.roleUsersRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 移除角色用户
+      tags:
+      - 角色管理
+  /storage/config:
+    get:
+      description: 获取所有存储配置，按默认优先排序
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.StorageConfig'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取存储配置列表
+      tags:
+      - 存储配置
+    post:
+      consumes:
+      - application/json
+      description: 创建新的存储配置（LOCAL或S3）
+      parameters:
+      - description: 配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.storageConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.StorageConfig'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建存储配置
+      tags:
+      - 存储配置
+  /storage/config/{id}:
+    delete:
+      description: 删除指定的存储配置（默认配置不可删除，被使用的配置不可删除）
+      parameters:
+      - description: 配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 不可删除默认配置或被使用的配置
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 配置不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除存储配置
+      tags:
+      - 存储配置
+    patch:
+      consumes:
+      - application/json
+      description: 更新指定的存储配置
+      parameters:
+      - description: 配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.storageConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.StorageConfig'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 配置不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新存储配置
+      tags:
+      - 存储配置
+  /storage/config/{id}/default:
+    patch:
+      description: 将指定存储配置设为默认
+      parameters:
+      - description: 配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 设置失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 设置默认存储
+      tags:
+      - 存储配置
+  /storage/config/{id}/test:
+    post:
+      description: 测试指定存储配置的连通性
+      parameters:
+      - description: 配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功，data包含ok和elapsedMs
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 配置不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 测试失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 测试存储配置
+      tags:
+      - 存储配置
+  /syslog/list:
+    get:
+      description: 分页查询系统操作日志，支持按用户名、HTTP方法、状态码筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 用户名（模糊搜索）
+        in: query
+        name: username
+        type: string
+      - description: HTTP方法
+        in: query
+        name: method
+        type: string
+      - description: 状态码
+        in: query
+        name: statusCode
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/models.PageData'
+                  - properties:
+                      pageData:
+                        items:
+                          $ref: '#/definitions/models.SysLog'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 查询系统日志
+      tags:
+      - 系统日志
+  /system/config:
+    get:
+      description: 获取当前系统配置信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.SystemConfig'
+              type: object
+      summary: 获取系统配置
+      tags:
+      - 系统配置
+    put:
+      consumes:
+      - application/json
+      description: 创建或更新系统配置
+      parameters:
+      - description: 配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.systemConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.SystemConfig'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 保存系统配置
+      tags:
+      - 系统配置
+  /task:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的定时任务
+      parameters:
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.taskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Task'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建定时任务
+      tags:
+      - 定时任务
+  /task/{id}:
+    delete:
+      description: 删除指定定时任务
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 删除失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除定时任务
+      tags:
+      - 定时任务
+    patch:
+      consumes:
+      - application/json
+      description: 更新指定定时任务的信息
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.taskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Task'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 任务不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新定时任务
+      tags:
+      - 定时任务
+  /task/{id}/run:
+    post:
+      description: 立即手动触发一次任务执行
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 执行失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 手动执行任务
+      tags:
+      - 定时任务
+  /task/{id}/toggle:
+    patch:
+      description: 切换指定任务的启用/停用状态
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Task'
+              type: object
+        "404":
+          description: 任务不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 切换任务启用状态
+      tags:
+      - 定时任务
+  /task/bulk/delete:
+    post:
+      consumes:
+      - application/json
+      description: 批量删除指定的定时任务
+      parameters:
+      - description: 任务ID列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.bulkIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功删除数量
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  type: integer
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量删除任务
+      tags:
+      - 定时任务
+  /task/bulk/toggle:
+    post:
+      consumes:
+      - application/json
+      description: 批量启用或停用定时任务
+      parameters:
+      - description: 任务ID列表和目标状态
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.bulkToggleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 影响数量
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  type: integer
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量切换启用状态
+      tags:
+      - 定时任务
+  /task/funcs:
+    get:
+      description: 列出所有可用的内置函数（FUNC类型任务使用）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取内置函数列表
+      tags:
+      - 定时任务
+  /task/log/page:
+    get:
+      description: 分页查询任务执行日志，支持按任务ID、状态、触发方式筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 任务ID
+        in: query
+        name: taskId
+        type: string
+      - description: 状态（SUCCESS/FAILED/TIMEOUT）
+        in: query
+        name: status
+        type: string
+      - description: 触发方式（CRON/MANUAL）
+        in: query
+        name: trigger
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/models.PageData'
+                  - properties:
+                      pageData:
+                        items:
+                          $ref: '#/definitions/models.TaskLog'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 查询任务日志
+      tags:
+      - 定时任务
+  /task/page:
+    get:
+      description: 分页查询定时任务列表，支持按名称和类型筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 任务名称（模糊搜索）
+        in: query
+        name: name
+        type: string
+      - description: 任务类型（HTTP/SHELL/FUNC）
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/models.PageData'
+                  - properties:
+                      pageData:
+                        items:
+                          $ref: '#/definitions/models.Task'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 分页查询任务
+      tags:
+      - 定时任务
+  /task/preview-next:
+    get:
+      description: 返回cron表达式接下来n次的执行时间
+      parameters:
+      - description: Cron表达式
+        in: query
+        name: spec
+        required: true
+        type: string
+      - default: 5
+        description: 预览次数
+        in: query
+        name: "n"
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "400":
+          description: 表达式无效
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 预览Cron表达式
+      tags:
+      - 定时任务
+  /task/stats:
+    get:
+      description: 获取任务总数、启用数、今日执行统计和最近执行记录
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取任务统计
+      tags:
+      - 定时任务
+  /user:
+    get:
+      description: 分页查询用户列表，支持按用户名搜索
+      parameters:
+      - description: 用户名（模糊搜索）
+        in: query
+        name: username
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.PageData'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户列表
+      tags:
+      - 用户管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新用户，可同时设置资料和分配角色
+      parameters:
+      - description: 用户信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.createUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.User'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建用户
+      tags:
+      - 用户管理
+  /user/{id}:
+    delete:
+      description: 根据ID删除用户
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 删除失败
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除用户
+      tags:
+      - 用户管理
+    patch:
+      consumes:
+      - application/json
+      description: 更新用户基本信息、资料和角色
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.updateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新用户
+      tags:
+      - 用户管理
+  /user/detail:
+    get:
+      description: 获取当前登录用户的详细信息，包括资料和角色
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户详情
+      tags:
+      - 用户管理
+  /user/password/reset/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: 管理员重置指定用户的密码
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 新密码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.resetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 重置密码
+      tags:
+      - 用户管理
+  /user/profile/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: 用户更新自己的个人资料（昵称、头像、性别、地址、邮箱），仅允许更新本人
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 个人资料
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.updateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "403":
+          description: 无权修改他人资料
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新个人资料
+      tags:
+      - 用户管理
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

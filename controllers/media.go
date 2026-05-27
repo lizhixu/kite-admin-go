@@ -22,9 +22,37 @@ import (
 
 type MediaController struct{}
 
-// --- 媒体 ---
+// moveMediaRequest 批量移动媒体请求
+type moveMediaRequest struct {
+	IDs      []uint `json:"ids" binding:"required"`
+	FolderID uint   `json:"folderId"`
+}
 
-// Upload 处理 multipart/form-data 上传
+// createFolderRequest 创建文件夹请求
+type createFolderRequest struct {
+	Name     string `json:"name" binding:"required"`
+	ParentID *uint  `json:"parentId"`
+	ConfigID uint   `json:"configId" binding:"required"`
+}
+
+// renameFolderRequest 重命名文件夹请求
+type renameFolderRequest struct {
+	Name string `json:"name" binding:"required"`
+}
+
+// Upload 上传文件
+// @Summary      上传文件
+// @Description  上传文件到指定存储配置和文件夹
+// @Tags         媒体管理
+// @Security     BearerAuth
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        configId formData   string false "存储配置ID"
+// @Param        folderId formData   string false "文件夹ID"
+// @Param        file     formData   file   true  "上传文件"
+// @Success      200      {object} models.Response{data=models.Media} "成功"
+// @Failure      400      {object} models.Response "请求参数错误"
+// @Router       /media/upload [post]
 func (mc *MediaController) Upload(c *gin.Context) {
 	configIDStr := c.PostForm("configId")
 	folderIDStr := c.PostForm("folderId")
@@ -129,7 +157,22 @@ func (mc *MediaController) Upload(c *gin.Context) {
 	respondOK(c, rec)
 }
 
-// GetPage 分页查询媒体列表
+// GetPage 分页查询媒体
+// @Summary      分页查询媒体
+// @Description  分页查询媒体文件列表，支持按文件名、MIME类型、存储类型等筛选
+// @Tags         媒体管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        pageNo      query    int    false "页码"     default(1)
+// @Param        pageSize    query    int    false "每页数量" default(24)
+// @Param        filename    query    string false "文件名（模糊搜索）"
+// @Param        mimePrefix  query    string false "MIME类型前缀（如 image/）"
+// @Param        storageType query    string false "存储类型（LOCAL/S3）"
+// @Param        configId    query    string false "存储配置ID"
+// @Param        folderId    query    string false "文件夹ID"
+// @Param        scope       query    string false "范围（mine/all）"
+// @Success      200         {object} models.Response{data=models.PageData{pageData=[]models.Media}} "成功"
+// @Router       /media/page [get]
 func (mc *MediaController) GetPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "24"))
@@ -176,7 +219,16 @@ func (mc *MediaController) GetPage(c *gin.Context) {
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
 
-// Delete 删除单个媒体
+// Delete 删除媒体
+// @Summary      删除媒体
+// @Description  删除指定的媒体文件
+// @Tags         媒体管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "媒体ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      404 {object} models.Response "媒体不存在"
+// @Router       /media/{id} [delete]
 func (mc *MediaController) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var m models.Media
@@ -195,7 +247,17 @@ func (mc *MediaController) Delete(c *gin.Context) {
 	respondOK(c, true)
 }
 
-// BulkDelete 批量删除
+// BulkDelete 批量删除媒体
+// @Summary      批量删除媒体
+// @Description  批量删除指定的媒体文件
+// @Tags         媒体管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     bulkIDsRequest true "媒体ID列表"
+// @Success      200  {object} models.Response{data=int} "成功删除数量"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /media/bulk/delete [post]
 func (mc *MediaController) BulkDelete(c *gin.Context) {
 	var req bulkIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
@@ -222,12 +284,19 @@ func (mc *MediaController) BulkDelete(c *gin.Context) {
 	respondOK(c, len(rows))
 }
 
-// MoveMedia 批量移动到目标文件夹（仅改 DB，不动物理文件）
+// MoveMedia 移动媒体文件
+// @Summary      移动媒体文件
+// @Description  批量移动媒体文件到目标文件夹
+// @Tags         媒体管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     moveMediaRequest true "媒体ID列表和目标文件夹"
+// @Success      200  {object} models.Response{data=int} "移动数量"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /media/move [post]
 func (mc *MediaController) MoveMedia(c *gin.Context) {
-	var req struct {
-		IDs      []uint `json:"ids" binding:"required"`
-		FolderID uint   `json:"folderId"`
-	}
+	var req moveMediaRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
 		respondErr(c, 400, "ids required")
 		return
@@ -274,7 +343,15 @@ func (mc *MediaController) MoveMedia(c *gin.Context) {
 
 // --- 文件夹 ---
 
-// ListFolders 返回指定存储的文件夹列表（扁平，前端自行构建树）
+// ListFolders 获取文件夹列表
+// @Summary      获取文件夹列表
+// @Description  获取指定存储配置下的文件夹列表（扁平结构）
+// @Tags         媒体文件夹
+// @Security     BearerAuth
+// @Produce      json
+// @Param        configId query    string false "存储配置ID"
+// @Success      200      {object} models.Response{data=[]models.MediaFolder} "成功"
+// @Router       /media/folder/tree [get]
 func (mc *MediaController) ListFolders(c *gin.Context) {
 	configIDStr := c.Query("configId")
 	q := config.DB.Model(&models.MediaFolder{})
@@ -291,13 +368,19 @@ func (mc *MediaController) ListFolders(c *gin.Context) {
 	respondOK(c, rows)
 }
 
-// CreateFolder 新建文件夹
+// CreateFolder 创建文件夹
+// @Summary      创建文件夹
+// @Description  在指定存储配置下创建新文件夹
+// @Tags         媒体文件夹
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     createFolderRequest true "文件夹信息"
+// @Success      200  {object} models.Response{data=models.MediaFolder} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /media/folder [post]
 func (mc *MediaController) CreateFolder(c *gin.Context) {
-	var req struct {
-		Name     string `json:"name" binding:"required"`
-		ParentID *uint  `json:"parentId"`
-		ConfigID uint   `json:"configId" binding:"required"`
-	}
+	var req createFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondErr(c, 400, err.Error())
 		return
@@ -356,13 +439,22 @@ func (mc *MediaController) CreateFolder(c *gin.Context) {
 	respondOK(c, folder)
 }
 
-// RenameFolder 重命名文件夹（联动更新本节点与所有后代的 Path，以及关联 Media.folder_path）
-// 物理存储不做移动以避免半成品状态——下一次上传按新 Path，已上传文件的 storageKey 保持原值。
+// RenameFolder 重命名文件夹
+// @Summary      重命名文件夹
+// @Description  重命名文件夹，联动更新所有后代路径
+// @Tags         媒体文件夹
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int                 true "文件夹ID"
+// @Param        body body     renameFolderRequest true "新名称"
+// @Success      200  {object} models.Response{data=models.MediaFolder} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "文件夹不存在"
+// @Router       /media/folder/{id} [patch]
 func (mc *MediaController) RenameFolder(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	var req struct {
-		Name string `json:"name" binding:"required"`
-	}
+	var req renameFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondErr(c, 400, err.Error())
 		return
@@ -445,7 +537,18 @@ func (mc *MediaController) RenameFolder(c *gin.Context) {
 	respondOK(c, folder)
 }
 
-// DeleteFolder 删除文件夹；默认仅允许空文件夹，传 ?cascade=1 级联删
+// DeleteFolder 删除文件夹
+// @Summary      删除文件夹
+// @Description  删除文件夹，默认仅允许空文件夹，传cascade=1可级联删除
+// @Tags         媒体文件夹
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id      path     int    true  "文件夹ID"
+// @Param        cascade query    string false "是否级联删除（1=是）"
+// @Success      200     {object} models.Response "成功"
+// @Failure      400     {object} models.Response "文件夹不为空"
+// @Failure      404     {object} models.Response "文件夹不存在"
+// @Router       /media/folder/{id} [delete]
 func (mc *MediaController) DeleteFolder(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	cascade := c.Query("cascade") == "1"
@@ -502,8 +605,19 @@ func (mc *MediaController) DeleteFolder(c *gin.Context) {
 	respondOK(c, true)
 }
 
-// ResolveFolder 按路径解析（或自动创建）文件夹，返回最终文件夹对象。
-// GET /media/folder/resolve?configId=1&path=avatars/2024
+// ResolveFolder 按路径解析文件夹
+// @Summary      按路径解析文件夹
+// @Description  按路径解析或自动创建文件夹，返回最终文件夹对象
+// @Tags         媒体文件夹
+// @Security     BearerAuth
+// @Produce      json
+// @Param        configId   query    string true  "存储配置ID"
+// @Param        path       query    string true  "文件夹路径（如 avatars/2024）"
+// @Param        autoCreate query    string false "不存在时是否自动创建（1=是）"
+// @Success      200        {object} models.Response{data=models.MediaFolder} "成功"
+// @Failure      400        {object} models.Response "请求参数错误"
+// @Failure      404        {object} models.Response "文件夹不存在"
+// @Router       /media/folder/resolve [get]
 func (mc *MediaController) ResolveFolder(c *gin.Context) {
 	configIDStr := c.Query("configId")
 	folderPath := strings.TrimSpace(c.Query("path"))
@@ -596,6 +710,14 @@ type storageConfigRequest struct {
 	IsDefault       *bool  `json:"isDefault"`
 }
 
+// ListConfigs 获取存储配置列表
+// @Summary      获取存储配置列表
+// @Description  获取所有存储配置，按默认优先排序
+// @Tags         存储配置
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response{data=[]models.StorageConfig} "成功"
+// @Router       /storage/config [get]
 func (mc *MediaController) ListConfigs(c *gin.Context) {
 	var rows []models.StorageConfig
 	if err := config.DB.Order("is_default DESC, id ASC").Find(&rows).Error; err != nil {
@@ -605,6 +727,17 @@ func (mc *MediaController) ListConfigs(c *gin.Context) {
 	respondOK(c, rows)
 }
 
+// CreateConfig 创建存储配置
+// @Summary      创建存储配置
+// @Description  创建新的存储配置（LOCAL或S3）
+// @Tags         存储配置
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     storageConfigRequest true "配置信息"
+// @Success      200  {object} models.Response{data=models.StorageConfig} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /storage/config [post]
 func (mc *MediaController) CreateConfig(c *gin.Context) {
 	var req storageConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -655,6 +788,19 @@ func (mc *MediaController) CreateConfig(c *gin.Context) {
 	respondOK(c, cfg)
 }
 
+// UpdateConfig 更新存储配置
+// @Summary      更新存储配置
+// @Description  更新指定的存储配置
+// @Tags         存储配置
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int                    true "配置ID"
+// @Param        body body     storageConfigRequest true "配置信息"
+// @Success      200  {object} models.Response{data=models.StorageConfig} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "配置不存在"
+// @Router       /storage/config/{id} [patch]
 func (mc *MediaController) UpdateConfig(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var req storageConfigRequest
@@ -709,6 +855,17 @@ func (mc *MediaController) UpdateConfig(c *gin.Context) {
 	respondOK(c, cfg)
 }
 
+// DeleteConfig 删除存储配置
+// @Summary      删除存储配置
+// @Description  删除指定的存储配置（默认配置不可删除，被使用的配置不可删除）
+// @Tags         存储配置
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "配置ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      400 {object} models.Response "不可删除默认配置或被使用的配置"
+// @Failure      404 {object} models.Response "配置不存在"
+// @Router       /storage/config/{id} [delete]
 func (mc *MediaController) DeleteConfig(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var cfg models.StorageConfig
@@ -733,6 +890,16 @@ func (mc *MediaController) DeleteConfig(c *gin.Context) {
 	respondOK(c, true)
 }
 
+// SetDefault 设置默认存储
+// @Summary      设置默认存储
+// @Description  将指定存储配置设为默认
+// @Tags         存储配置
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "配置ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      500 {object} models.Response "设置失败"
+// @Router       /storage/config/{id}/default [patch]
 func (mc *MediaController) SetDefault(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	err := config.DB.Transaction(func(tx *gorm.DB) error {
@@ -753,6 +920,17 @@ func (mc *MediaController) SetDefault(c *gin.Context) {
 	respondOK(c, true)
 }
 
+// TestConfig 测试存储配置
+// @Summary      测试存储配置
+// @Description  测试指定存储配置的连通性
+// @Tags         存储配置
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "配置ID"
+// @Success      200 {object} models.Response "成功，data包含ok和elapsedMs"
+// @Failure      404 {object} models.Response "配置不存在"
+// @Failure      500 {object} models.Response "测试失败"
+// @Router       /storage/config/{id}/test [post]
 func (mc *MediaController) TestConfig(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var cfg models.StorageConfig

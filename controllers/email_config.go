@@ -15,6 +15,7 @@ import (
 
 type EmailConfigController struct{}
 
+// emailConfigRequest 邮件配置请求
 type emailConfigRequest struct {
 	Host      string `json:"host" binding:"required"`
 	Port      int    `json:"port" binding:"required"`
@@ -25,6 +26,14 @@ type emailConfigRequest struct {
 	Enabled   bool   `json:"enabled"`
 }
 
+// Get 获取邮件配置
+// @Summary      获取邮件配置
+// @Description  获取当前邮件服务配置
+// @Tags         邮件配置
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response{data=models.EmailConfig} "成功"
+// @Router       /email/config [get]
 func (ec *EmailConfigController) Get(c *gin.Context) {
 	var cfg models.EmailConfig
 	if err := config.DB.First(&cfg).Error; err != nil {
@@ -34,6 +43,17 @@ func (ec *EmailConfigController) Get(c *gin.Context) {
 	respondOK(c, cfg)
 }
 
+// Save 保存邮件配置
+// @Summary      保存邮件配置
+// @Description  创建或更新邮件服务配置
+// @Tags         邮件配置
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     emailConfigRequest true "配置信息"
+// @Success      200  {object} models.Response{data=models.EmailConfig} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /email/config [put]
 func (ec *EmailConfigController) Save(c *gin.Context) {
 	var req emailConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -71,6 +91,15 @@ func (ec *EmailConfigController) Save(c *gin.Context) {
 	respondOK(c, cfg)
 }
 
+// Test 测试邮件配置
+// @Summary      测试邮件配置
+// @Description  发送测试邮件到当前用户的邮箱
+// @Tags         邮件配置
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response "测试邮件已加入队列"
+// @Failure      400 {object} models.Response "配置未启用或未绑定邮箱"
+// @Router       /email/config/test [post]
 func (ec *EmailConfigController) Test(c *gin.Context) {
 	var cfg models.EmailConfig
 	if err := config.DB.First(&cfg).Error; err != nil {

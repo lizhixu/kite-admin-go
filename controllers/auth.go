@@ -47,6 +47,16 @@ type LoginRequest struct {
 	Captcha  string `json:"captcha" binding:"required"`
 }
 
+// Login 用户登录
+// @Summary      用户登录
+// @Description  通过用户名、密码和验证码登录系统
+// @Tags         认证管理
+// @Accept       json
+// @Produce      json
+// @Param        body body     LoginRequest true "登录信息"
+// @Success      200  {object} models.Response "成功，data包含accessToken"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /auth/login [post]
 func (ac *AuthController) Login(c *gin.Context) {
 	ip := getClientIP(c)
 	userAgent := c.Request.UserAgent()
@@ -126,6 +136,13 @@ func (ac *AuthController) Login(c *gin.Context) {
 	})
 }
 
+// GetCaptcha 获取验证码
+// @Summary      获取验证码
+// @Description  获取图形验证码，验证码ID通过Cookie返回
+// @Tags         认证管理
+// @Produce      png
+// @Success      200 {string} string "验证码图片"
+// @Router       /auth/captcha [get]
 func (ac *AuthController) GetCaptcha(c *gin.Context) {
 	id, imgBytes, err := utils.GenerateCaptcha()
 	if err != nil {
@@ -144,6 +161,16 @@ func (ac *AuthController) GetCaptcha(c *gin.Context) {
 	c.Data(http.StatusOK, "image/png", imgBytes)
 }
 
+// SwitchRole 切换当前角色
+// @Summary      切换当前角色
+// @Description  切换当前用户的角色，返回新的Token
+// @Tags         认证管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        roleCode path     string true "角色编码"
+// @Success      200      {object} models.Response "成功，data包含accessToken"
+// @Failure      500      {object} models.Response "生成Token失败"
+// @Router       /auth/current-role/switch/{roleCode} [post]
 func (ac *AuthController) SwitchRole(c *gin.Context) {
 	roleCode := c.Param("roleCode")
 	userID := c.GetUint("userID")
@@ -170,6 +197,14 @@ func (ac *AuthController) SwitchRole(c *gin.Context) {
 	})
 }
 
+// Logout 用户登出
+// @Summary      用户登出
+// @Description  退出登录（客户端应清除Token）
+// @Tags         认证管理
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response "成功"
+// @Router       /auth/logout [post]
 func (ac *AuthController) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, models.Response{
 		Code:      0,

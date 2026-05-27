@@ -12,6 +12,50 @@ import (
 
 type UserController struct{}
 
+type createUserRequest struct {
+	Username string  `json:"username" binding:"required"`
+	Password string  `json:"password" binding:"required"`
+	Enable   *bool   `json:"enable"`
+	RoleIds  []uint  `json:"roleIds"`
+	NickName *string `json:"nickName"`
+	Gender   *int    `json:"gender"`
+	Avatar   *string `json:"avatar"`
+	Address  *string `json:"address"`
+	Email    *string `json:"email"`
+}
+
+type updateUserRequest struct {
+	Username string  `json:"username"`
+	Enable   *bool   `json:"enable"`
+	RoleIds  []uint  `json:"roleIds"`
+	NickName *string `json:"nickName"`
+	Gender   *int    `json:"gender"`
+	Avatar   *string `json:"avatar"`
+	Address  *string `json:"address"`
+	Email    *string `json:"email"`
+}
+
+type updateProfileRequest struct {
+	NickName *string `json:"nickName"`
+	Gender   *int    `json:"gender"`
+	Avatar   *string `json:"avatar"`
+	Address  *string `json:"address"`
+	Email    *string `json:"email"`
+}
+
+type resetPasswordRequest struct {
+	Password string `json:"password" binding:"required"`
+}
+
+// GetDetail 获取当前用户详情
+// @Summary      获取当前用户详情
+// @Description  获取当前登录用户的详细信息，包括资料和角色
+// @Tags         用户管理
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response "成功"
+// @Failure      404 {object} models.Response "用户不存在"
+// @Router       /user/detail [get]
 func (uc *UserController) GetDetail(c *gin.Context) {
 	userID := c.GetUint("userID")
 
@@ -51,6 +95,17 @@ func (uc *UserController) GetDetail(c *gin.Context) {
 	})
 }
 
+// GetList 获取用户列表
+// @Summary      获取用户列表
+// @Description  分页查询用户列表，支持按用户名搜索
+// @Tags         用户管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        username query    string false "用户名（模糊搜索）"
+// @Param        pageNo   query    int    false "页码"     default(1)
+// @Param        pageSize query    int    false "每页数量" default(10)
+// @Success      200      {object} models.Response{data=models.PageData} "成功"
+// @Router       /user [get]
 func (uc *UserController) GetList(c *gin.Context) {
 	username := c.Query("username")
 	pageNo, _ := strconv.Atoi(c.Query("pageNo"))
@@ -105,18 +160,19 @@ func (uc *UserController) GetList(c *gin.Context) {
 	})
 }
 
+// Create 创建用户
+// @Summary      创建用户
+// @Description  创建新用户，可同时设置资料和分配角色
+// @Tags         用户管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     createUserRequest true "用户信息"
+// @Success      200  {object} models.Response{data=models.User} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /user [post]
 func (uc *UserController) Create(c *gin.Context) {
-	var req struct {
-		Username string  `json:"username" binding:"required"`
-		Password string  `json:"password" binding:"required"`
-		Enable   *bool   `json:"enable"`
-		RoleIds  []uint  `json:"roleIds"`
-		NickName *string `json:"nickName"`
-		Gender   *int    `json:"gender"`
-		Avatar   *string `json:"avatar"`
-		Address  *string `json:"address"`
-		Email    *string `json:"email"`
-	}
+	var req createUserRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
@@ -193,18 +249,22 @@ func (uc *UserController) Create(c *gin.Context) {
 	})
 }
 
+// Update 更新用户
+// @Summary      更新用户
+// @Description  更新用户基本信息、资料和角色
+// @Tags         用户管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int              true "用户ID"
+// @Param        body body     updateUserRequest true "用户信息"
+// @Success      200  {object} models.Response "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      404  {object} models.Response "用户不存在"
+// @Router       /user/{id} [patch]
 func (uc *UserController) Update(c *gin.Context) {
 	id := c.Param("id")
-	var req struct {
-		Username string  `json:"username"`
-		Enable   *bool   `json:"enable"`
-		RoleIds  []uint  `json:"roleIds"`
-		NickName *string `json:"nickName"`
-		Gender   *int    `json:"gender"`
-		Avatar   *string `json:"avatar"`
-		Address  *string `json:"address"`
-		Email    *string `json:"email"`
-	}
+	var req updateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
 			Code:      400,
@@ -318,8 +378,19 @@ func (uc *UserController) Update(c *gin.Context) {
 	})
 }
 
-// UpdateProfile 用户更新自己的个人资料（昵称、头像、性别、地址、邮箱）
-// 仅允许更新本人，禁止修改用户名、启用状态、角色等敏感字段
+// UpdateProfile 更新个人资料
+// @Summary      更新个人资料
+// @Description  用户更新自己的个人资料（昵称、头像、性别、地址、邮箱），仅允许更新本人
+// @Tags         用户管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int                 true "用户ID"
+// @Param        body body     updateProfileRequest true "个人资料"
+// @Success      200  {object} models.Response "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      403  {object} models.Response "无权修改他人资料"
+// @Router       /user/profile/{id} [patch]
 func (uc *UserController) UpdateProfile(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	currentUserID := c.GetUint("userID")
@@ -332,13 +403,7 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		NickName *string `json:"nickName"`
-		Gender   *int    `json:"gender"`
-		Avatar   *string `json:"avatar"`
-		Address  *string `json:"address"`
-		Email    *string `json:"email"`
-	}
+	var req updateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
 			Code:      400,
@@ -420,6 +485,16 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 	})
 }
 
+// Delete 删除用户
+// @Summary      删除用户
+// @Description  根据ID删除用户
+// @Tags         用户管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "用户ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      500 {object} models.Response "删除失败"
+// @Router       /user/{id} [delete]
 func (uc *UserController) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := config.DB.Delete(&models.User{}, id).Error; err != nil {
@@ -439,11 +514,21 @@ func (uc *UserController) Delete(c *gin.Context) {
 	})
 }
 
+// ResetPassword 重置密码
+// @Summary      重置密码
+// @Description  管理员重置指定用户的密码
+// @Tags         用户管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path     int                 true "用户ID"
+// @Param        body body     resetPasswordRequest true "新密码"
+// @Success      200  {object} models.Response "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /user/password/reset/{id} [patch]
 func (uc *UserController) ResetPassword(c *gin.Context) {
 	id := c.Param("id")
-	var req struct {
-		Password string `json:"password" binding:"required"`
-	}
+	var req resetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
 			Code:      400,

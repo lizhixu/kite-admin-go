@@ -17,6 +17,7 @@ import (
 
 type MessageController struct{}
 
+// createMessageRequest 创建消息请求
 type createMessageRequest struct {
 	Title      string `json:"title" binding:"required"`
 	Content    string `json:"content" binding:"required"`
@@ -26,6 +27,18 @@ type createMessageRequest struct {
 	UserIDs    []uint `json:"userIds"`
 }
 
+// GetPage 分页查询消息
+// @Summary      分页查询消息
+// @Description  分页查询消息列表，支持按标题和类型筛选
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        pageNo   query    int    false "页码"     default(1)
+// @Param        pageSize query    int    false "每页数量" default(10)
+// @Param        title    query    string false "标题（模糊搜索）"
+// @Param        type     query    string false "类型（SYSTEM/NOTICE/ANNOUNCEMENT）"
+// @Success      200      {object} models.Response{data=models.PageData{pageData=[]models.Message}} "成功"
+// @Router       /message/page [get]
 func (mc *MessageController) GetPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -49,6 +62,17 @@ func (mc *MessageController) GetPage(c *gin.Context) {
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
 
+// Create 发送消息
+// @Summary      发送消息
+// @Description  创建并发送消息，支持按用户、角色或全员发送
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     createMessageRequest true "消息信息"
+// @Success      200  {object} models.Response{data=models.Message} "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /message [post]
 func (mc *MessageController) Create(c *gin.Context) {
 	var req createMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -129,6 +153,16 @@ func (mc *MessageController) Create(c *gin.Context) {
 	respondOK(c, msg)
 }
 
+// Delete 删除消息
+// @Summary      删除消息
+// @Description  删除指定消息及其收件人记录
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "消息ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      500 {object} models.Response "删除失败"
+// @Router       /message/{id} [delete]
 func (mc *MessageController) Delete(c *gin.Context) {
 	id := c.Param("id")
 	config.DB.Where("message_id = ?", id).Delete(&models.MessageRecipient{})
@@ -139,6 +173,17 @@ func (mc *MessageController) Delete(c *gin.Context) {
 	respondOK(c, true)
 }
 
+// BulkDelete 批量删除消息
+// @Summary      批量删除消息
+// @Description  批量删除指定消息
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     bulkIDsRequest true "消息ID列表"
+// @Success      200  {object} models.Response{data=int} "成功删除数量"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /message/bulk/delete [post]
 func (mc *MessageController) BulkDelete(c *gin.Context) {
 	var req bulkIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
@@ -150,6 +195,16 @@ func (mc *MessageController) BulkDelete(c *gin.Context) {
 	respondOK(c, len(req.IDs))
 }
 
+// GetMyMessages 获取我的消息
+// @Summary      获取我的消息
+// @Description  获取当前用户收到的消息列表
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        pageNo   query int false "页码"     default(1)
+// @Param        pageSize query int false "每页数量" default(10)
+// @Success      200      {object} models.Response "成功"
+// @Router       /message/mine [get]
 func (mc *MessageController) GetMyMessages(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -176,6 +231,14 @@ func (mc *MessageController) GetMyMessages(c *gin.Context) {
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
 
+// GetUnreadCount 获取未读消息数
+// @Summary      获取未读消息数
+// @Description  获取当前用户的未读消息数量
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response "成功，data包含count字段"
+// @Router       /message/unread/count [get]
 func (mc *MessageController) GetUnreadCount(c *gin.Context) {
 	userID := c.GetUint("userID")
 
@@ -187,6 +250,16 @@ func (mc *MessageController) GetUnreadCount(c *gin.Context) {
 	respondOK(c, gin.H{"count": count})
 }
 
+// MarkRead 标记消息已读
+// @Summary      标记消息已读
+// @Description  标记指定消息为已读
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id  path     int true "消息ID"
+// @Success      200 {object} models.Response "成功"
+// @Failure      404 {object} models.Response "消息不存在"
+// @Router       /message/{id}/read [patch]
 func (mc *MessageController) MarkRead(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	userID := c.GetUint("userID")
@@ -203,6 +276,14 @@ func (mc *MessageController) MarkRead(c *gin.Context) {
 	respondOK(c, true)
 }
 
+// MarkAllRead 全部标记已读
+// @Summary      全部标记已读
+// @Description  将当前用户所有未读消息标记为已读
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response "成功"
+// @Router       /message/read/all [patch]
 func (mc *MessageController) MarkAllRead(c *gin.Context) {
 	userID := c.GetUint("userID")
 	now := time.Now()
@@ -214,6 +295,17 @@ func (mc *MessageController) MarkAllRead(c *gin.Context) {
 	respondOK(c, true)
 }
 
+// BulkMarkRead 批量标记已读
+// @Summary      批量标记已读
+// @Description  批量标记指定消息为已读
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     bulkIDsRequest true "消息ID列表"
+// @Success      200  {object} models.Response "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Router       /message/bulk/read [patch]
 func (mc *MessageController) BulkMarkRead(c *gin.Context) {
 	var req bulkIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
@@ -231,6 +323,14 @@ func (mc *MessageController) BulkMarkRead(c *gin.Context) {
 	respondOK(c, true)
 }
 
+// SSE 消息推送SSE连接
+// @Summary      消息推送SSE连接
+// @Description  建立SSE连接，实时接收新消息推送
+// @Tags         消息管理
+// @Security     BearerAuth
+// @Produce      text/event-stream
+// @Success      200 {string} string "SSE事件流"
+// @Router       /message/sse [get]
 func (mc *MessageController) SSE(c *gin.Context) {
 	userID := c.GetUint("userID")
 
