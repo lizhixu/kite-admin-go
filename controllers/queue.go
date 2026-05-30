@@ -236,8 +236,11 @@ func (qc *QueueController) GetHandlers(c *gin.Context) {
 // ====== Jobs ======
 
 type jobRequest struct {
-	Payload    string `json:"payload"`
-	MaxRetries int    `json:"maxRetries"`
+	Payload    string     `json:"payload"`
+	MaxRetries int        `json:"maxRetries"`
+	Priority   int        `json:"priority"`
+	DelayUntil *time.Time `json:"delayUntil"`
+	UniqueKey  string     `json:"uniqueKey"`
 }
 
 type bulkJobsRequest struct {
@@ -323,18 +326,21 @@ func (qc *QueueController) AddJob(c *gin.Context) {
 		maxRetries = qm.MaxRetries
 	}
 
-	job := models.QueueJob{
-		QueueID:    qm.ID,
-		Payload:    req.Payload,
-		Status:     queue.JobPending,
+	jobID, err := queue.PushWithOpts(c.Request.Context(), qm.Name, req.Payload, queue.PushOpts{
 		MaxRetries: maxRetries,
-	}
-	if err := config.DB.Create(&job).Error; err != nil {
+		Priority:   req.Priority,
+		DelayUntil: req.DelayUntil,
+		UniqueKey:  req.UniqueKey,
+	})
+	if err != nil {
 		respondErr(c, 500, err.Error())
 		return
 	}
-	config.DB.Model(&models.Queue{}).Where("id = ?", qm.ID).
-		UpdateColumn("total_jobs", config.DB.Raw("total_jobs + 1"))
+	var job models.QueueJob
+	if err := config.DB.First(&job, jobID).Error; err != nil {
+		respondErr(c, 500, err.Error())
+		return
+	}
 	respondOK(c, job)
 }
 
@@ -363,26 +369,25 @@ func (qc *QueueController) BulkAddJobs(c *gin.Context) {
 		respondErr(c, 404, "queue not found")
 		return
 	}
-	jobs := make([]models.QueueJob, 0, len(req.Items))
+
+	items := make([]queue.BulkPushItem, 0, len(req.Items))
 	for _, it := range req.Items {
-		retries := it.MaxRetries
-		if retries <= 0 {
-			retries = qm.MaxRetries
-		}
-		jobs = append(jobs, models.QueueJob{
-			QueueID:    qm.ID,
-			Payload:    it.Payload,
-			Status:     queue.JobPending,
-			MaxRetries: retries,
+		items = append(items, queue.BulkPushItem{
+			Payload: it.Payload,
+			Opts: queue.PushOpts{
+				MaxRetries: it.MaxRetries,
+				Priority:   it.Priority,
+				DelayUntil: it.DelayUntil,
+				UniqueKey:  it.UniqueKey,
+			},
 		})
 	}
-	if err := config.DB.Create(&jobs).Error; err != nil {
+	count, err := queue.BulkPush(c.Request.Context(), qm.Name, items)
+	if err != nil {
 		respondErr(c, 500, err.Error())
 		return
 	}
-	config.DB.Model(&models.Queue{}).Where("id = ?", qm.ID).
-		UpdateColumn("total_jobs", config.DB.Raw("total_jobs + ?", len(jobs)))
-	respondOK(c, len(jobs))
+	respondOK(c, count)
 }
 
 // KickJob 重试单个任务

@@ -3,10 +3,13 @@ package services
 import (
 	"backend/models"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/smtp"
 	"strings"
+	"time"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -18,7 +21,7 @@ var md goldmark.Markdown
 func init() {
 	md = goldmark.New(
 		goldmark.WithExtensions(
-		extension.GFM,
+			extension.GFM,
 			extension.Strikethrough,
 			extension.Table,
 		),
@@ -37,38 +40,64 @@ func NewEmailService() *EmailService {
 
 // Send sends an HTML email using the provided config.
 // Supports implicit SSL (port 465) and STARTTLS (port 587).
-func (s *EmailService) Send(cfg models.EmailConfig, to string, subject string, htmlBody string) error {
+func (s *EmailService) Send(ctx context.Context, cfg models.EmailConfig, to string, subject string, htmlBody string) error {
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	from := fmt.Sprintf("%s <%s>", cfg.FromName, cfg.FromEmail)
 	msg := buildEmail(from, to, subject, htmlBody)
 	tlsConfig := &tls.Config{ServerName: cfg.Host}
 
+	dialer := &net.Dialer{}
+	if deadline, ok := ctx.Deadline(); ok {
+		dialer.Deadline = deadline
+	} else {
+		dialer.Timeout = 30 * time.Second
+	}
+
 	if cfg.Port == 465 {
-		conn, err := tls.Dial("tcp", addr, tlsConfig)
+		conn, err := tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
 		if err != nil {
 			return fmt.Errorf("tls dial: %w", err)
+		}
+		defer conn.Close()
+		if deadline, ok := ctx.Deadline(); ok {
+			_ = conn.SetDeadline(deadline)
 		}
 		client, err := smtp.NewClient(conn, cfg.Host)
 		if err != nil {
 			return fmt.Errorf("smtp client: %w", err)
 		}
-		return sendViaClient(client, cfg, to, msg)
+		return sendViaClient(ctx, client, conn, cfg, to, msg)
 	}
 
-	client, err := smtp.Dial(addr)
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return fmt.Errorf("smtp dial: %w", err)
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+	client, err := smtp.NewClient(conn, cfg.Host)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("smtp client: %w", err)
 	}
 	if ok, _ := client.Extension("STARTTLS"); ok {
 		if err := client.StartTLS(tlsConfig); err != nil {
 			client.Close()
+			conn.Close()
 			return fmt.Errorf("starttls: %w", err)
 		}
 	}
-	return sendViaClient(client, cfg, to, msg)
+	return sendViaClient(ctx, client, conn, cfg, to, msg)
 }
 
-func sendViaClient(client *smtp.Client, cfg models.EmailConfig, to, msg string) error {
+func sendViaClient(ctx context.Context, client *smtp.Client, conn net.Conn, cfg models.EmailConfig, to, msg string) error {
+	defer conn.Close()
+	defer client.Close()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	// After TLS, check supported auth mechanisms
 	var auth smtp.Auth
 	if ok, mechs := client.Extension("AUTH"); ok {
@@ -120,10 +149,13 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 }
 
 // SendBatch sends the same email to multiple recipients.
-func (s *EmailService) SendBatch(cfg models.EmailConfig, recipients []string, subject string, htmlBody string) error {
+func (s *EmailService) SendBatch(ctx context.Context, cfg models.EmailConfig, recipients []string, subject string, htmlBody string) error {
 	var errs []string
 	for _, to := range recipients {
-		if err := s.Send(cfg, to, subject, htmlBody); err != nil {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := s.Send(ctx, cfg, to, subject, htmlBody); err != nil {
 			errs = append(errs, fmt.Sprintf("%s: %v", to, err))
 		}
 	}
@@ -140,7 +172,12 @@ func buildEmail(from, to, subject, htmlBody string) string {
 		"MIME-Version: 1.0\r\n"+
 		"Content-Type: text/html; charset=\"UTF-8\"\r\n"+
 		"\r\n"+
-		"%s", from, to, subject, htmlBody)
+		"%s", sanitizeHeader(from), sanitizeHeader(to), sanitizeHeader(subject), htmlBody)
+}
+
+// sanitizeHeader strips CR/LF to prevent header injection.
+func sanitizeHeader(s string) string {
+	return strings.NewReplacer("\r", "", "\n", "").Replace(s)
 }
 
 // markdownToHTML converts Markdown to HTML using goldmark.

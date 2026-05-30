@@ -143,10 +143,17 @@ func (mc *MessageController) Create(c *gin.Context) {
 		data, _ := json.Marshal(gson{"messageId": msg.ID, "title": msg.Title, "type": msg.Type})
 		sse.Default().NotifyUsers(userIDs, string(data))
 
-		// Push email job async
-		payload, _ := json.Marshal(emailPayload{MessageID: msg.ID, UserIDs: userIDs})
-		if _, err := queue.Push(context.Background(), "message.email", string(payload)); err != nil {
-			log.Printf("queue push message.email: %v", err)
+		// Push one email job per recipient (batched)
+		items := make([]queue.BulkPushItem, 0, len(userIDs))
+		for _, uid := range userIDs {
+			payload, _ := json.Marshal(emailPayload{MessageID: msg.ID, UserID: uid})
+			items = append(items, queue.BulkPushItem{
+				Payload: string(payload),
+				Opts:    queue.PushOpts{UniqueKey: fmt.Sprintf("message.email:%d:%d", msg.ID, uid)},
+			})
+		}
+		if _, err := queue.BulkPush(context.Background(), "message.email", items); err != nil {
+			log.Printf("queue bulk push message.email msg=%d: %v", msg.ID, err)
 		}
 	}
 
@@ -378,6 +385,6 @@ func (mc *MessageController) SSE(c *gin.Context) {
 type gson = map[string]interface{}
 
 type emailPayload struct {
-	MessageID uint   `json:"messageId"`
-	UserIDs   []uint `json:"userIds"`
+	MessageID uint `json:"messageId"`
+	UserID    uint `json:"userId"`
 }

@@ -22,9 +22,12 @@ type Queue struct {
 // QueueJob 队列中的任务单元
 type QueueJob struct {
 	ID          uint       `gorm:"primaryKey" json:"id"`
-	QueueID     uint       `gorm:"index;not null" json:"queueId"`
+	QueueID     uint       `gorm:"not null;index:idx_queue_unique_key,priority:1" json:"queueId"`
 	Payload     string     `gorm:"type:longtext" json:"payload"`
 	Status      string     `gorm:"type:varchar(16);default:'PENDING';index" json:"status"`
+	Priority    int        `gorm:"default:0;index" json:"priority"`
+	DelayUntil  *time.Time `gorm:"index" json:"delayUntil"`
+	UniqueKey   string     `gorm:"type:varchar(191);index:idx_queue_unique_key,priority:2" json:"uniqueKey"`
 	Result      string     `gorm:"type:longtext" json:"result"`
 	Error       string     `gorm:"type:text" json:"error"`
 	RetryCount  int        `gorm:"default:0" json:"retryCount"`
