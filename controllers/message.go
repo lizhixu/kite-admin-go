@@ -42,6 +42,9 @@ type createMessageRequest struct {
 func (mc *MessageController) GetPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	title := c.Query("title")
 	msgType := c.Query("type")
 
@@ -57,7 +60,9 @@ func (mc *MessageController) GetPage(c *gin.Context) {
 	q.Count(&total)
 
 	var rows []models.Message
-	q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows)
+	if err := q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
+		log.Printf("GetPage find error: %v", err)
+	}
 
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
@@ -76,7 +81,7 @@ func (mc *MessageController) GetPage(c *gin.Context) {
 func (mc *MessageController) Create(c *gin.Context) {
 	var req createMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -101,7 +106,7 @@ func (mc *MessageController) Create(c *gin.Context) {
 	}
 
 	if err := config.DB.Create(&msg).Error; err != nil {
-		respondErr(c, 500, "Failed to create message")
+		respondInternal(c, "Failed to create message")
 		return
 	}
 
@@ -172,9 +177,11 @@ func (mc *MessageController) Create(c *gin.Context) {
 // @Router       /message/{id} [delete]
 func (mc *MessageController) Delete(c *gin.Context) {
 	id := c.Param("id")
-	config.DB.Where("message_id = ?", id).Delete(&models.MessageRecipient{})
+	if err := config.DB.Where("message_id = ?", id).Delete(&models.MessageRecipient{}).Error; err != nil {
+		log.Printf("Delete message recipients error: %v", err)
+	}
 	if err := config.DB.Delete(&models.Message{}, id).Error; err != nil {
-		respondErr(c, 500, "Failed to delete message")
+		respondInternal(c, "Failed to delete message")
 		return
 	}
 	respondOK(c, true)
@@ -194,11 +201,15 @@ func (mc *MessageController) Delete(c *gin.Context) {
 func (mc *MessageController) BulkDelete(c *gin.Context) {
 	var req bulkIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
-		respondErr(c, 400, "ids required")
+		respondBadRequest(c, "ids required")
 		return
 	}
-	config.DB.Where("message_id IN ?", req.IDs).Delete(&models.MessageRecipient{})
-	config.DB.Where("id IN ?", req.IDs).Delete(&models.Message{})
+	if err := config.DB.Where("message_id IN ?", req.IDs).Delete(&models.MessageRecipient{}).Error; err != nil {
+		log.Printf("BulkDelete recipients error: %v", err)
+	}
+	if err := config.DB.Where("id IN ?", req.IDs).Delete(&models.Message{}).Error; err != nil {
+		log.Printf("BulkDelete messages error: %v", err)
+	}
 	respondOK(c, len(req.IDs))
 }
 
@@ -215,6 +226,9 @@ func (mc *MessageController) BulkDelete(c *gin.Context) {
 func (mc *MessageController) GetMyMessages(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	userID := c.GetUint("userID")
 
 	type messageWithStatus struct {
@@ -224,16 +238,20 @@ func (mc *MessageController) GetMyMessages(c *gin.Context) {
 	}
 
 	var total int64
-	config.DB.Model(&models.MessageRecipient{}).Where("user_id = ?", userID).Count(&total)
+	if err := config.DB.Model(&models.MessageRecipient{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
+		log.Printf("GetMyMessages count error: %v", err)
+	}
 
 	var rows []messageWithStatus
-	config.DB.Table("message_recipients mr").
+	if err := config.DB.Table("message_recipients mr").
 		Select("messages.*, mr.is_read, mr.read_at").
 		Joins("LEFT JOIN messages ON messages.id = mr.message_id").
 		Where("mr.user_id = ?", userID).
 		Order("messages.id DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).
-		Scan(&rows)
+		Scan(&rows).Error; err != nil {
+		log.Printf("GetMyMessages scan error: %v", err)
+	}
 
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
@@ -277,7 +295,7 @@ func (mc *MessageController) MarkRead(c *gin.Context) {
 		Updates(map[string]interface{}{"is_read": true, "read_at": now})
 
 	if result.RowsAffected == 0 {
-		respondErr(c, 404, "Message not found")
+		respondNotFound(c, "Message not found")
 		return
 	}
 	respondOK(c, true)
@@ -295,9 +313,11 @@ func (mc *MessageController) MarkAllRead(c *gin.Context) {
 	userID := c.GetUint("userID")
 	now := time.Now()
 
-	config.DB.Model(&models.MessageRecipient{}).
+	if err := config.DB.Model(&models.MessageRecipient{}).
 		Where("user_id = ? AND is_read = ?", userID, false).
-		Updates(map[string]interface{}{"is_read": true, "read_at": now})
+		Updates(map[string]interface{}{"is_read": true, "read_at": now}).Error; err != nil {
+		log.Printf("MarkAllRead error: %v", err)
+	}
 
 	respondOK(c, true)
 }
@@ -316,16 +336,18 @@ func (mc *MessageController) MarkAllRead(c *gin.Context) {
 func (mc *MessageController) BulkMarkRead(c *gin.Context) {
 	var req bulkIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
-		respondErr(c, 400, "ids required")
+		respondBadRequest(c, "ids required")
 		return
 	}
 
 	userID := c.GetUint("userID")
 	now := time.Now()
 
-	config.DB.Model(&models.MessageRecipient{}).
+	if err := config.DB.Model(&models.MessageRecipient{}).
 		Where("message_id IN ? AND user_id = ? AND is_read = ?", req.IDs, userID, false).
-		Updates(map[string]interface{}{"is_read": true, "read_at": now})
+		Updates(map[string]interface{}{"is_read": true, "read_at": now}).Error; err != nil {
+		log.Printf("BulkMarkRead error: %v", err)
+	}
 
 	respondOK(c, true)
 }

@@ -9,7 +9,7 @@ type User struct {
 	Enable     bool      `gorm:"default:true" json:"enable"`
 	CreateTime time.Time `gorm:"autoCreateTime" json:"createTime"`
 	UpdateTime time.Time `gorm:"autoUpdateTime" json:"updateTime"`
-	Profile    *Profile  `gorm:"foreignKey:UserID" json:"profile,omitempty"`
+	Profile    *Profile  `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE" json:"profile,omitempty"`
 	Roles      []Role    `gorm:"many2many:user_roles;" json:"roles,omitempty"`
 }
 

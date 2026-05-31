@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -179,6 +180,15 @@ func runHTTP(ctx context.Context, task models.Task, rec *stepRecorder) (string, 
 }
 
 func runShell(ctx context.Context, task models.Task, rec *stepRecorder) (string, error) {
+	// 安全检查：拒绝包含危险字符的命令，防止命令注入
+	dangerousChars := []string{"|", "&", ";", "`", "$(", ">", "<", "\n", "\r"}
+	for _, d := range dangerousChars {
+		if strings.Contains(task.Command, d) {
+			rec.add(lvError, "命令包含不安全字符: %q", d)
+			return "", fmt.Errorf("command contains unsafe character: %q", d)
+		}
+	}
+
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		rec.add(lvInfo, "Windows 平台，调用 cmd /C")

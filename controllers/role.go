@@ -2,8 +2,9 @@ package controllers
 
 import (
 	"backend/config"
+	"backend/middleware"
 	"backend/models"
-	"net/http"
+	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -51,6 +52,9 @@ func (rc *RoleController) GetPage(c *gin.Context) {
 	if pageSize < 1 {
 		pageSize = 10
 	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
 
 	query := config.DB.Model(&models.Role{}).Preload("Permissions")
 	if name != "" {
@@ -58,11 +62,15 @@ func (rc *RoleController) GetPage(c *gin.Context) {
 	}
 
 	var total int64
-	query.Count(&total)
+	if err := query.Count(&total).Error; err != nil {
+		log.Printf("GetPage count error: %v", err)
+	}
 
 	var roles []models.Role
 	offset := (pageNo - 1) * pageSize
-	query.Offset(offset).Limit(pageSize).Find(&roles)
+	if err := query.Offset(offset).Limit(pageSize).Find(&roles).Error; err != nil {
+		log.Printf("GetPage find error: %v", err)
+	}
 
 	var pageData []gin.H
 	for _, role := range roles {
@@ -79,15 +87,7 @@ func (rc *RoleController) GetPage(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, models.Response{
-		Code:    0,
-		Message: "OK",
-		Data: models.PageData{
-			PageData: pageData,
-			Total:    total,
-		},
-		OriginUrl: c.Request.URL.String(),
-	})
+	respondOK(c, models.PageData{PageData: pageData, Total: total})
 }
 
 // GetAll 获取所有启用角色
@@ -100,14 +100,11 @@ func (rc *RoleController) GetPage(c *gin.Context) {
 // @Router       /role [get]
 func (rc *RoleController) GetAll(c *gin.Context) {
 	var roles []models.Role
-	config.DB.Where("enable = ?", true).Find(&roles)
+	if err := config.DB.Where("enable = ?", true).Find(&roles).Error; err != nil {
+		log.Printf("GetAll find error: %v", err)
+	}
 
-	c.JSON(http.StatusOK, models.Response{
-		Code:      0,
-		Message:   "OK",
-		Data:      roles,
-		OriginUrl: c.Request.URL.String(),
-	})
+	respondOK(c, roles)
 }
 
 // Create 创建角色
@@ -124,11 +121,7 @@ func (rc *RoleController) GetAll(c *gin.Context) {
 func (rc *RoleController) Create(c *gin.Context) {
 	var req createRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.Response{
-			Code:      400,
-			Message:   err.Error(),
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -140,11 +133,7 @@ func (rc *RoleController) Create(c *gin.Context) {
 	}
 
 	if err := config.DB.Create(&role).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:      500,
-			Message:   "Failed to create role",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondInternal(c, "Failed to create role")
 		return
 	}
 
@@ -152,16 +141,16 @@ func (rc *RoleController) Create(c *gin.Context) {
 	if len(req.PermissionIds) > 0 {
 		var permissions []models.Permission
 		if err := config.DB.Where("id IN ?", req.PermissionIds).Find(&permissions).Error; err == nil {
-			config.DB.Model(&role).Association("Permissions").Append(&permissions)
+			if err := config.DB.Model(&role).Association("Permissions").Append(&permissions); err != nil {
+				log.Printf("Create role assign permissions error: %v", err)
+			}
+		} else {
+			log.Printf("Create role query permissions error: %v", err)
 		}
 	}
+	middleware.InvalidatePermCache(role.Code)
 
-	c.JSON(http.StatusOK, models.Response{
-		Code:      0,
-		Message:   "OK",
-		Data:      role,
-		OriginUrl: c.Request.URL.Path,
-	})
+	respondOK(c, role)
 }
 
 // Update 更新角色
@@ -181,22 +170,14 @@ func (rc *RoleController) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req updateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.Response{
-			Code:      400,
-			Message:   err.Error(),
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	// 查询角色
 	var role models.Role
 	if err := config.DB.First(&role, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, models.Response{
-			Code:      404,
-			Message:   "Role not found",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondNotFound(c, "Role not found")
 		return
 	}
 
@@ -214,11 +195,7 @@ func (rc *RoleController) Update(c *gin.Context) {
 
 	if len(updates) > 0 {
 		if err := config.DB.Model(&role).Updates(updates).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, models.Response{
-				Code:      500,
-				Message:   "Failed to update role",
-				OriginUrl: c.Request.URL.Path,
-			})
+			respondInternal(c, "Failed to update role")
 			return
 		}
 	}
@@ -227,29 +204,17 @@ func (rc *RoleController) Update(c *gin.Context) {
 	if req.PermissionIds != nil {
 		var permissions []models.Permission
 		if err := config.DB.Where("id IN ?", req.PermissionIds).Find(&permissions).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, models.Response{
-				Code:      500,
-				Message:   "Failed to query permissions",
-				OriginUrl: c.Request.URL.Path,
-			})
+			respondInternal(c, "Failed to query permissions")
 			return
 		}
 		if err := config.DB.Model(&role).Association("Permissions").Replace(&permissions); err != nil {
-			c.JSON(http.StatusInternalServerError, models.Response{
-				Code:      500,
-				Message:   "Failed to update role permissions",
-				OriginUrl: c.Request.URL.Path,
-			})
+			respondInternal(c, "Failed to update role permissions")
 			return
 		}
 	}
+	middleware.InvalidatePermCache(role.Code)
 
-	c.JSON(http.StatusOK, models.Response{
-		Code:      0,
-		Message:   "OK",
-		Data:      true,
-		OriginUrl: c.Request.URL.Path,
-	})
+	respondOK(c, true)
 }
 
 // Delete 删除角色
@@ -268,43 +233,31 @@ func (rc *RoleController) Delete(c *gin.Context) {
 
 	var role models.Role
 	if err := config.DB.First(&role, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, models.Response{
-			Code:      404,
-			Message:   "Role not found",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondNotFound(c, "Role not found")
 		return
 	}
 
-	if role.Code == "SUPER_ADMIN" {
-		c.JSON(http.StatusBadRequest, models.Response{
-			Code:      400,
-			Message:   "Super Admin role cannot be deleted",
-			OriginUrl: c.Request.URL.Path,
-		})
+	if role.Code == models.RoleSuperAdmin {
+		respondBadRequest(c, "Super Admin role cannot be deleted")
 		return
 	}
 
 	// 1. Clear many-to-many associations first to resolve foreign key constraints
-	config.DB.Model(&role).Association("Permissions").Clear()
-	config.DB.Model(&role).Association("Users").Clear()
+	if err := config.DB.Model(&role).Association("Permissions").Clear(); err != nil {
+		log.Printf("Delete role clear permissions error: %v", err)
+	}
+	if err := config.DB.Model(&role).Association("Users").Clear(); err != nil {
+		log.Printf("Delete role clear users error: %v", err)
+	}
 
 	// 2. Delete the role
 	if err := config.DB.Delete(&role).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:      500,
-			Message:   "Failed to delete role",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondInternal(c, "Failed to delete role")
 		return
 	}
+	middleware.InvalidatePermCache(role.Code)
 
-	c.JSON(http.StatusOK, models.Response{
-		Code:      0,
-		Message:   "OK",
-		Data:      true,
-		OriginUrl: c.Request.URL.Path,
-	})
+	respondOK(c, true)
 }
 
 // AddUsers 添加角色用户
@@ -324,49 +277,28 @@ func (rc *RoleController) AddUsers(c *gin.Context) {
 	id := c.Param("id")
 	var req roleUsersRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.Response{
-			Code:      400,
-			Message:   err.Error(),
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	var role models.Role
 	if err := config.DB.First(&role, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, models.Response{
-			Code:      404,
-			Message:   "Role not found",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondNotFound(c, "Role not found")
 		return
 	}
 
 	var users []models.User
 	if err := config.DB.Where("id IN ?", req.UserIds).Find(&users).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:      500,
-			Message:   "Failed to query users",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondInternal(c, "Failed to query users")
 		return
 	}
 
 	if err := config.DB.Model(&role).Association("Users").Append(&users); err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:      500,
-			Message:   "Failed to add users to role",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondInternal(c, "Failed to add users to role")
 		return
 	}
 
-	c.JSON(http.StatusOK, models.Response{
-		Code:      0,
-		Message:   "OK",
-		Data:      true,
-		OriginUrl: c.Request.URL.Path,
-	})
+	respondOK(c, true)
 }
 
 // RemoveUsers 移除角色用户
@@ -386,47 +318,26 @@ func (rc *RoleController) RemoveUsers(c *gin.Context) {
 	id := c.Param("id")
 	var req roleUsersRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.Response{
-			Code:      400,
-			Message:   err.Error(),
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	var role models.Role
 	if err := config.DB.First(&role, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, models.Response{
-			Code:      404,
-			Message:   "Role not found",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondNotFound(c, "Role not found")
 		return
 	}
 
 	var users []models.User
 	if err := config.DB.Where("id IN ?", req.UserIds).Find(&users).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:      500,
-			Message:   "Failed to query users",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondInternal(c, "Failed to query users")
 		return
 	}
 
 	if err := config.DB.Model(&role).Association("Users").Delete(&users); err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:      500,
-			Message:   "Failed to remove users from role",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondInternal(c, "Failed to remove users from role")
 		return
 	}
 
-	c.JSON(http.StatusOK, models.Response{
-		Code:      0,
-		Message:   "OK",
-		Data:      true,
-		OriginUrl: c.Request.URL.Path,
-	})
+	respondOK(c, true)
 }

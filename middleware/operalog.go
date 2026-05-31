@@ -5,6 +5,8 @@ import (
 	"backend/models"
 	"bytes"
 	"io"
+	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -46,6 +48,10 @@ func OperationLog() gin.HandlerFunc {
 			bodyBytes, _ := io.ReadAll(c.Request.Body)
 			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 			bodyStr := string(bodyBytes)
+			// 敏感路径脱敏：掩码 password、captcha 等字段
+			if isSensitivePath(c.Request.URL.Path) {
+				bodyStr = maskSensitiveFields(bodyStr)
+			}
 			if paramsStr != "" {
 				paramsStr = paramsStr + " | Body: " + bodyStr
 			} else {
@@ -80,7 +86,9 @@ func OperationLog() gin.HandlerFunc {
 		usernameVal, exists := c.Get("username")
 		username := ""
 		if exists && usernameVal != nil {
-			username = usernameVal.(string)
+			if s, ok := usernameVal.(string); ok {
+				username = s
+			}
 		}
 
 		userAgent := strings.Join(c.Request.Header["User-Agent"], " ")
@@ -108,7 +116,30 @@ func OperationLog() gin.HandlerFunc {
 
 		// Fast async insert
 		go func(l models.SysLog) {
-			config.DB.Create(&l)
+			if err := config.DB.Create(&l).Error; err != nil {
+				log.Printf("failed to create syslog: %v", err)
+			}
 		}(logEntry)
 	}
+}
+
+// isSensitivePath 判断路径是否包含敏感数据（密码、验证码等）
+func isSensitivePath(path string) bool {
+	sensitivePaths := []string{
+		"/auth/login",
+		"/user/password/reset",
+	}
+	for _, p := range sensitivePaths {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// maskSensitiveFields 将请求体中的敏感字段值替换为 ***
+var sensitiveFieldRe = regexp.MustCompile(`("(?i:password|captcha|captchaId)"\s*:\s*")([^"]*?)"`)
+
+func maskSensitiveFields(body string) string {
+	return sensitiveFieldRe.ReplaceAllString(body, `${1}***"`)
 }

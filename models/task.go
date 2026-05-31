@@ -13,7 +13,7 @@ type Task struct {
 	HttpHeaders string     `gorm:"type:text" json:"httpHeaders,omitempty"` // JSON 字符串：{"K":"V"}
 	HttpBody    string     `gorm:"type:text" json:"httpBody,omitempty"`
 	Timeout     int        `gorm:"default:60" json:"timeout"` // 秒
-	Enabled     bool       `gorm:"default:true" json:"enabled"`
+	Enabled     bool       `gorm:"default:true;index" json:"enabled"`
 	Description string     `gorm:"type:varchar(255)" json:"description"`
 	LastRunAt   *time.Time `json:"lastRunAt"`
 	NextRunAt   *time.Time `json:"nextRunAt"`
@@ -24,7 +24,7 @@ type Task struct {
 // TaskLog 任务执行记录
 type TaskLog struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	TaskID    uint      `gorm:"index" json:"taskId"`
+	TaskID    uint      `gorm:"index;constraint:OnDelete:CASCADE" json:"taskId"`
 	TaskName  string    `gorm:"type:varchar(100)" json:"taskName"`
 	Status    string    `gorm:"type:varchar(16)" json:"status"`  // SUCCESS / FAILED / TIMEOUT
 	Trigger   string    `gorm:"type:varchar(16)" json:"trigger"` // CRON / MANUAL

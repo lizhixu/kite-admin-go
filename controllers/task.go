@@ -4,7 +4,6 @@ import (
 	"backend/config"
 	"backend/models"
 	"backend/scheduler"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -42,6 +41,9 @@ type taskRequest struct {
 func (tc *TaskController) GetPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	name := c.Query("name")
 	typ := c.Query("type")
 
@@ -58,7 +60,7 @@ func (tc *TaskController) GetPage(c *gin.Context) {
 
 	var rows []models.Task
 	if err := q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 
@@ -79,11 +81,11 @@ func (tc *TaskController) GetPage(c *gin.Context) {
 func (tc *TaskController) Create(c *gin.Context) {
 	var req taskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := scheduler.ValidateSpec(req.Spec); err != nil {
-		respondErr(c, 400, "invalid cron spec: "+err.Error())
+		respondBadRequest(c, "invalid cron spec: "+err.Error())
 		return
 	}
 
@@ -98,12 +100,12 @@ func (tc *TaskController) Create(c *gin.Context) {
 		Timeout: req.Timeout, Enabled: enabled, Description: req.Description,
 	}
 	if err := config.DB.Create(&task).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	if task.Enabled {
 		if err := scheduler.Default().Add(&task); err != nil {
-			respondErr(c, 500, "schedule failed: "+err.Error())
+			respondInternal(c, "schedule failed: "+err.Error())
 			return
 		}
 	}
@@ -127,17 +129,17 @@ func (tc *TaskController) Update(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var req taskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := scheduler.ValidateSpec(req.Spec); err != nil {
-		respondErr(c, 400, "invalid cron spec: "+err.Error())
+		respondBadRequest(c, "invalid cron spec: "+err.Error())
 		return
 	}
 
 	var task models.Task
 	if err := config.DB.First(&task, id).Error; err != nil {
-		respondErr(c, 404, "task not found")
+		respondNotFound(c, "task not found")
 		return
 	}
 
@@ -155,14 +157,14 @@ func (tc *TaskController) Update(c *gin.Context) {
 	}
 
 	if err := config.DB.Save(&task).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 
 	scheduler.Default().Remove(task.ID)
 	if task.Enabled {
 		if err := scheduler.Default().Add(&task); err != nil {
-			respondErr(c, 500, "schedule failed: "+err.Error())
+			respondInternal(c, "schedule failed: "+err.Error())
 			return
 		}
 	}
@@ -182,7 +184,7 @@ func (tc *TaskController) Update(c *gin.Context) {
 func (tc *TaskController) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if err := config.DB.Delete(&models.Task{}, id).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	scheduler.Default().Remove(uint(id))
@@ -203,17 +205,17 @@ func (tc *TaskController) Toggle(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var task models.Task
 	if err := config.DB.First(&task, id).Error; err != nil {
-		respondErr(c, 404, "task not found")
+		respondNotFound(c, "task not found")
 		return
 	}
 	task.Enabled = !task.Enabled
 	if err := config.DB.Save(&task).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	if task.Enabled {
 		if err := scheduler.Default().Add(&task); err != nil {
-			respondErr(c, 500, "schedule failed: "+err.Error())
+			respondInternal(c, "schedule failed: "+err.Error())
 			return
 		}
 	} else {
@@ -235,7 +237,7 @@ func (tc *TaskController) Toggle(c *gin.Context) {
 func (tc *TaskController) Run(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if err := scheduler.Default().RunOnce(uint(id)); err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, true)
@@ -257,6 +259,9 @@ func (tc *TaskController) Run(c *gin.Context) {
 func (tc *TaskController) GetLogs(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	taskID := c.Query("taskId")
 	status := c.Query("status")
 	trigger := c.Query("trigger")
@@ -277,7 +282,7 @@ func (tc *TaskController) GetLogs(c *gin.Context) {
 
 	var rows []models.TaskLog
 	if err := q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, gin.H{"pageData": rows, "total": total})
@@ -351,12 +356,12 @@ func (tc *TaskController) PreviewNext(c *gin.Context) {
 	spec := c.Query("spec")
 	n, _ := strconv.Atoi(c.DefaultQuery("n", "5"))
 	if spec == "" {
-		respondErr(c, 400, "spec required")
+		respondBadRequest(c, "spec required")
 		return
 	}
 	times, err := scheduler.PreviewNext(spec, n)
 	if err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	respondOK(c, times)
@@ -387,11 +392,11 @@ type bulkToggleRequest struct {
 func (tc *TaskController) BulkDelete(c *gin.Context) {
 	var req bulkIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
-		respondErr(c, 400, "ids required")
+		respondBadRequest(c, "ids required")
 		return
 	}
 	if err := config.DB.Where("id IN ?", req.IDs).Delete(&models.Task{}).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	for _, id := range req.IDs {
@@ -414,11 +419,11 @@ func (tc *TaskController) BulkDelete(c *gin.Context) {
 func (tc *TaskController) BulkToggle(c *gin.Context) {
 	var req bulkToggleRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
-		respondErr(c, 400, "ids required")
+		respondBadRequest(c, "ids required")
 		return
 	}
 	if err := config.DB.Model(&models.Task{}).Where("id IN ?", req.IDs).Update("enabled", req.Enabled).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 
@@ -432,12 +437,4 @@ func (tc *TaskController) BulkToggle(c *gin.Context) {
 		}
 	}
 	respondOK(c, len(req.IDs))
-}
-
-func respondOK(c *gin.Context, data any) {
-	c.JSON(http.StatusOK, models.Response{Code: 0, Message: "OK", Data: data, OriginUrl: c.Request.URL.Path})
-}
-
-func respondErr(c *gin.Context, code int, msg string) {
-	c.JSON(http.StatusOK, models.Response{Code: code, Message: msg, OriginUrl: c.Request.URL.Path})
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"backend/config"
+	"backend/middleware"
 	"backend/models"
 	"backend/storage"
 	"bytes"
@@ -58,23 +59,23 @@ func (mc *MediaController) Upload(c *gin.Context) {
 	folderIDStr := c.PostForm("folderId")
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		respondErr(c, 400, "file required: "+err.Error())
+		respondBadRequest(c, "file required: "+err.Error())
 		return
 	}
 
 	cfg, err := pickStorageConfig(configIDStr)
 	if err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if !cfg.Enabled {
-		respondErr(c, 400, "storage config disabled")
+		respondBadRequest(c, "storage config disabled")
 		return
 	}
 
 	folder, err := resolveFolder(folderIDStr, cfg.ID)
 	if err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -83,24 +84,24 @@ func (mc *MediaController) Upload(c *gin.Context) {
 	if cfg.AllowExtensions != "" {
 		allow := splitCSV(cfg.AllowExtensions)
 		if !containsCI(allow, ext) {
-			respondErr(c, 400, "extension not allowed: "+ext)
+			respondBadRequest(c, "extension not allowed: "+ext)
 			return
 		}
 	}
 	if cfg.MaxSizeMB > 0 && fileHeader.Size > int64(cfg.MaxSizeMB)*1024*1024 {
-		respondErr(c, 400, fmt.Sprintf("file too large (>%dMB)", cfg.MaxSizeMB))
+		respondBadRequest(c, fmt.Sprintf("file too large (>%dMB)", cfg.MaxSizeMB))
 		return
 	}
 
 	store, err := storage.New(cfg)
 	if err != nil {
-		respondErr(c, 500, "init storage: "+err.Error())
+		respondInternal(c, "init storage: "+err.Error())
 		return
 	}
 
 	src, err := fileHeader.Open()
 	if err != nil {
-		respondErr(c, 500, "open upload: "+err.Error())
+		respondInternal(c, "open upload: "+err.Error())
 		return
 	}
 	defer src.Close()
@@ -122,7 +123,7 @@ func (mc *MediaController) Upload(c *gin.Context) {
 	mime := detectMime(fileHeader)
 	url, err := store.Put(c, key, src, fileHeader.Size, mime)
 	if err != nil {
-		respondErr(c, 500, "store: "+err.Error())
+		respondInternal(c, "store: "+err.Error())
 		return
 	}
 
@@ -151,7 +152,7 @@ func (mc *MediaController) Upload(c *gin.Context) {
 	}
 	if err := config.DB.Create(&rec).Error; err != nil {
 		_ = store.Delete(c, key)
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, rec)
@@ -176,6 +177,9 @@ func (mc *MediaController) Upload(c *gin.Context) {
 func (mc *MediaController) GetPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "24"))
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	filename := c.Query("filename")
 	mimePrefix := c.Query("mimePrefix") // image/, video/, application/
 	storageType := c.Query("storageType")
@@ -213,7 +217,7 @@ func (mc *MediaController) GetPage(c *gin.Context) {
 
 	var rows []models.Media
 	if err := q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, gin.H{"pageData": rows, "total": total})
@@ -233,15 +237,15 @@ func (mc *MediaController) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var m models.Media
 	if err := config.DB.First(&m, id).Error; err != nil {
-		respondErr(c, 404, "media not found")
+		respondNotFound(c, "media not found")
 		return
 	}
 	if m.UploaderID != currentUserID(c) && !canViewAllMedia(c) {
-		respondErr(c, 403, "not the owner of this file")
+		respondForbidden(c, "not the owner of this file")
 		return
 	}
 	if err := deleteMedia(c, &m); err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, true)
@@ -261,19 +265,19 @@ func (mc *MediaController) Delete(c *gin.Context) {
 func (mc *MediaController) BulkDelete(c *gin.Context) {
 	var req bulkIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
-		respondErr(c, 400, "ids required")
+		respondBadRequest(c, "ids required")
 		return
 	}
 	var rows []models.Media
 	if err := config.DB.Where("id IN ?", req.IDs).Find(&rows).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	if !canViewAllMedia(c) {
 		uid := currentUserID(c)
 		for _, m := range rows {
 			if m.UploaderID != uid {
-				respondErr(c, 403, "contains files you don't own")
+				respondForbidden(c, "contains files you don't own")
 				return
 			}
 		}
@@ -298,20 +302,20 @@ func (mc *MediaController) BulkDelete(c *gin.Context) {
 func (mc *MediaController) MoveMedia(c *gin.Context) {
 	var req moveMediaRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
-		respondErr(c, 400, "ids required")
+		respondBadRequest(c, "ids required")
 		return
 	}
 	// 所有权校验
 	var rows []models.Media
 	if err := config.DB.Where("id IN ?", req.IDs).Find(&rows).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	if !canViewAllMedia(c) {
 		uid := currentUserID(c)
 		for _, m := range rows {
 			if m.UploaderID != uid {
-				respondErr(c, 403, "contains files you don't own")
+				respondForbidden(c, "contains files you don't own")
 				return
 			}
 		}
@@ -320,13 +324,13 @@ func (mc *MediaController) MoveMedia(c *gin.Context) {
 	if req.FolderID > 0 {
 		var f models.MediaFolder
 		if err := config.DB.First(&f, req.FolderID).Error; err != nil {
-			respondErr(c, 404, "folder not found")
+			respondNotFound(c, "folder not found")
 			return
 		}
 		folderPath = f.Path
 		// 同一存储校验
 		if len(rows) > 0 && rows[0].ConfigID != f.ConfigID {
-			respondErr(c, 400, "folder belongs to a different storage")
+			respondBadRequest(c, "folder belongs to a different storage")
 			return
 		}
 	}
@@ -335,7 +339,7 @@ func (mc *MediaController) MoveMedia(c *gin.Context) {
 		"folder_path": folderPath,
 	}).Error
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, len(req.IDs))
@@ -362,7 +366,7 @@ func (mc *MediaController) ListFolders(c *gin.Context) {
 	}
 	var rows []models.MediaFolder
 	if err := q.Order("path ASC").Find(&rows).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, rows)
@@ -382,29 +386,29 @@ func (mc *MediaController) ListFolders(c *gin.Context) {
 func (mc *MediaController) CreateFolder(c *gin.Context) {
 	var req createFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" || strings.ContainsAny(name, "/\\") {
-		respondErr(c, 400, "invalid folder name")
+		respondBadRequest(c, "invalid folder name")
 		return
 	}
 	// 校验存储存在
 	var cfg models.StorageConfig
 	if err := config.DB.First(&cfg, req.ConfigID).Error; err != nil {
-		respondErr(c, 404, "storage config not found")
+		respondNotFound(c, "storage config not found")
 		return
 	}
 	parentPath := ""
 	if req.ParentID != nil && *req.ParentID > 0 {
 		var parent models.MediaFolder
 		if err := config.DB.First(&parent, *req.ParentID).Error; err != nil {
-			respondErr(c, 404, "parent folder not found")
+			respondNotFound(c, "parent folder not found")
 			return
 		}
 		if parent.ConfigID != req.ConfigID {
-			respondErr(c, 400, "parent belongs to a different storage")
+			respondBadRequest(c, "parent belongs to a different storage")
 			return
 		}
 		parentPath = parent.Path
@@ -423,7 +427,7 @@ func (mc *MediaController) CreateFolder(c *gin.Context) {
 	}
 	q.Count(&dup)
 	if dup > 0 {
-		respondErr(c, 400, "folder already exists")
+		respondBadRequest(c, "folder already exists")
 		return
 	}
 	folder := models.MediaFolder{
@@ -433,7 +437,7 @@ func (mc *MediaController) CreateFolder(c *gin.Context) {
 		Path:     folderPath,
 	}
 	if err := config.DB.Create(&folder).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, folder)
@@ -456,17 +460,17 @@ func (mc *MediaController) RenameFolder(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var req renameFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" || strings.ContainsAny(name, "/\\") {
-		respondErr(c, 400, "invalid folder name")
+		respondBadRequest(c, "invalid folder name")
 		return
 	}
 	var folder models.MediaFolder
 	if err := config.DB.First(&folder, id).Error; err != nil {
-		respondErr(c, 404, "folder not found")
+		respondNotFound(c, "folder not found")
 		return
 	}
 	if name == folder.Name {
@@ -491,7 +495,7 @@ func (mc *MediaController) RenameFolder(c *gin.Context) {
 	}
 	q.Count(&dup)
 	if dup > 0 {
-		respondErr(c, 400, "folder already exists")
+		respondBadRequest(c, "folder already exists")
 		return
 	}
 
@@ -529,7 +533,7 @@ func (mc *MediaController) RenameFolder(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	folder.Name = name
@@ -554,7 +558,7 @@ func (mc *MediaController) DeleteFolder(c *gin.Context) {
 	cascade := c.Query("cascade") == "1"
 	var folder models.MediaFolder
 	if err := config.DB.First(&folder, id).Error; err != nil {
-		respondErr(c, 404, "folder not found")
+		respondNotFound(c, "folder not found")
 		return
 	}
 	// 找出本节点与所有后代
@@ -562,7 +566,7 @@ func (mc *MediaController) DeleteFolder(c *gin.Context) {
 	allFolders = append(allFolders, folder)
 	var descendants []models.MediaFolder
 	if err := config.DB.Where("config_id = ? AND path LIKE ?", folder.ConfigID, folder.Path+"/%").Find(&descendants).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	allFolders = append(allFolders, descendants...)
@@ -574,7 +578,7 @@ func (mc *MediaController) DeleteFolder(c *gin.Context) {
 	config.DB.Model(&models.Media{}).Where("folder_id IN ?", folderIDs).Count(&mediaCount)
 
 	if !cascade && (len(descendants) > 0 || mediaCount > 0) {
-		respondErr(c, 400, "folder is not empty; pass ?cascade=1 to force delete")
+		respondBadRequest(c, "folder is not empty; pass ?cascade=1 to force delete")
 		return
 	}
 
@@ -583,7 +587,7 @@ func (mc *MediaController) DeleteFolder(c *gin.Context) {
 	if err := config.DB.First(&cfg, folder.ConfigID).Error; err == nil {
 		if store, err := storage.New(&cfg); err == nil {
 			if err := store.DeletePrefix(c, folder.Path); err != nil {
-				respondErr(c, 500, "remove storage prefix: "+err.Error())
+				respondInternal(c, "remove storage prefix: "+err.Error())
 				return
 			}
 		}
@@ -599,7 +603,7 @@ func (mc *MediaController) DeleteFolder(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, true)
@@ -622,24 +626,24 @@ func (mc *MediaController) ResolveFolder(c *gin.Context) {
 	configIDStr := c.Query("configId")
 	folderPath := strings.TrimSpace(c.Query("path"))
 	if folderPath == "" {
-		respondErr(c, 400, "path is required")
+		respondBadRequest(c, "path is required")
 		return
 	}
 	configID, err := strconv.Atoi(configIDStr)
 	if err != nil || configID <= 0 {
-		respondErr(c, 400, "valid configId is required")
+		respondBadRequest(c, "valid configId is required")
 		return
 	}
 	// 校验存储存在
 	var cfg models.StorageConfig
 	if err := config.DB.First(&cfg, configID).Error; err != nil {
-		respondErr(c, 404, "storage config not found")
+		respondNotFound(c, "storage config not found")
 		return
 	}
 	// 规范化路径：去首尾 /，拆分段
 	folderPath = strings.Trim(folderPath, "/")
 	if folderPath == "" {
-		respondErr(c, 400, "path cannot be empty")
+		respondBadRequest(c, "path cannot be empty")
 		return
 	}
 	segments := strings.Split(folderPath, "/")
@@ -661,7 +665,7 @@ func (mc *MediaController) ResolveFolder(c *gin.Context) {
 		err := q.First(&currentFolder).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			if !autoCreate {
-				respondErr(c, 404, fmt.Sprintf("folder not found: %s", seg))
+				respondNotFound(c, fmt.Sprintf("folder not found: %s", seg))
 				return
 			}
 			// 自动创建
@@ -676,12 +680,12 @@ func (mc *MediaController) ResolveFolder(c *gin.Context) {
 				Path:     parentPath + seg,
 			}
 			if err := config.DB.Create(&newFolder).Error; err != nil {
-				respondErr(c, 500, err.Error())
+				respondInternal(c, err.Error())
 				return
 			}
 			currentFolder = newFolder
 		} else if err != nil {
-			respondErr(c, 500, err.Error())
+			respondInternal(c, err.Error())
 			return
 		}
 		pid := currentFolder.ID
@@ -721,7 +725,7 @@ type storageConfigRequest struct {
 func (mc *MediaController) ListConfigs(c *gin.Context) {
 	var rows []models.StorageConfig
 	if err := config.DB.Order("is_default DESC, id ASC").Find(&rows).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, rows)
@@ -741,7 +745,7 @@ func (mc *MediaController) ListConfigs(c *gin.Context) {
 func (mc *MediaController) CreateConfig(c *gin.Context) {
 	var req storageConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	cfg := models.StorageConfig{
@@ -782,7 +786,7 @@ func (mc *MediaController) CreateConfig(c *gin.Context) {
 		return tx.Create(&cfg).Error
 	})
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, cfg)
@@ -805,12 +809,12 @@ func (mc *MediaController) UpdateConfig(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var req storageConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	var cfg models.StorageConfig
 	if err := config.DB.First(&cfg, id).Error; err != nil {
-		respondErr(c, 404, "config not found")
+		respondNotFound(c, "config not found")
 		return
 	}
 	cfg.Name = req.Name
@@ -849,7 +853,7 @@ func (mc *MediaController) UpdateConfig(c *gin.Context) {
 		return tx.Save(&cfg).Error
 	})
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, cfg)
@@ -870,21 +874,21 @@ func (mc *MediaController) DeleteConfig(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var cfg models.StorageConfig
 	if err := config.DB.First(&cfg, id).Error; err != nil {
-		respondErr(c, 404, "config not found")
+		respondNotFound(c, "config not found")
 		return
 	}
 	if cfg.IsDefault {
-		respondErr(c, 400, "cannot delete default config; set another as default first")
+		respondBadRequest(c, "cannot delete default config; set another as default first")
 		return
 	}
 	var inUse int64
 	config.DB.Model(&models.Media{}).Where("config_id = ?", cfg.ID).Count(&inUse)
 	if inUse > 0 {
-		respondErr(c, 400, fmt.Sprintf("config in use by %d media files", inUse))
+		respondBadRequest(c, fmt.Sprintf("config in use by %d media files", inUse))
 		return
 	}
 	if err := config.DB.Delete(&cfg).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, true)
@@ -914,7 +918,7 @@ func (mc *MediaController) SetDefault(c *gin.Context) {
 		return tx.Save(&cfg).Error
 	})
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, true)
@@ -935,19 +939,19 @@ func (mc *MediaController) TestConfig(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var cfg models.StorageConfig
 	if err := config.DB.First(&cfg, id).Error; err != nil {
-		respondErr(c, 404, "config not found")
+		respondNotFound(c, "config not found")
 		return
 	}
 	store, err := storage.New(&cfg)
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	probeKey := fmt.Sprintf(".probe/%d_%d.txt", time.Now().UnixNano(), cfg.ID)
 	start := time.Now()
 	body := []byte("ok")
 	if _, err := store.Put(c, probeKey, bytes.NewReader(body), int64(len(body)), "text/plain"); err != nil {
-		respondErr(c, 500, "put probe: "+err.Error())
+		respondInternal(c, "put probe: "+err.Error())
 		return
 	}
 	_ = store.Delete(c, probeKey)
@@ -1055,14 +1059,14 @@ func currentUserID(c *gin.Context) uint {
 // canViewAllMedia SUPER_ADMIN 或拥有 ViewAllMedia 权限的角色可以跨用户查看/管理媒体
 func canViewAllMedia(c *gin.Context) bool {
 	roleCode := c.GetString("roleCode")
-	if roleCode == "SUPER_ADMIN" {
+	if roleCode == models.RoleSuperAdmin {
 		return true
 	}
-	var role models.Role
-	if err := config.DB.Preload("Permissions").Where("code = ?", roleCode).First(&role).Error; err != nil {
+	permissions, ok := middleware.GetRolePermissions(roleCode)
+	if !ok {
 		return false
 	}
-	for _, p := range role.Permissions {
+	for _, p := range permissions {
 		if p.Code == "ViewAllMedia" && p.Enable != nil && *p.Enable {
 			return true
 		}

@@ -130,7 +130,7 @@ func syncPermissions() error {
 	// 将所有权限重新授权给超级管理员
 	var superAdmin models.Role
 	var allPerms []models.Permission
-	if err := DB.Where("code = ?", "SUPER_ADMIN").First(&superAdmin).Error; err == nil {
+	if err := DB.Where("code = ?", models.RoleSuperAdmin).First(&superAdmin).Error; err == nil {
 		DB.Find(&allPerms)
 		DB.Model(&superAdmin).Association("Permissions").Replace(&allPerms)
 	}
@@ -215,7 +215,7 @@ func defaultPermissions() []models.Permission {
 }
 
 func seedInitialRoles(tx *gorm.DB) error {
-	superAdmin := &models.Role{Code: "SUPER_ADMIN", Name: "超级管理员", Enable: true}
+	superAdmin := &models.Role{Code: models.RoleSuperAdmin, Name: "超级管理员", Enable: true}
 	if err := tx.Create(superAdmin).Error; err != nil {
 		return err
 	}

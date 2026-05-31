@@ -5,6 +5,7 @@ import (
 	"backend/models"
 	"backend/queue"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -36,7 +37,7 @@ func (qc *QueueController) GetOne(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var q models.Queue
 	if err := config.DB.First(&q, id).Error; err != nil {
-		respondErr(c, 404, "queue not found")
+		respondNotFound(c, "queue not found")
 		return
 	}
 	respondOK(c, q)
@@ -57,6 +58,9 @@ func (qc *QueueController) GetOne(c *gin.Context) {
 func (qc *QueueController) GetPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	name := c.Query("name")
 	status := c.Query("status")
 
@@ -73,7 +77,7 @@ func (qc *QueueController) GetPage(c *gin.Context) {
 
 	var rows []models.Queue
 	if err := q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 
@@ -97,12 +101,12 @@ func (qc *QueueController) Update(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var req queueUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	var q models.Queue
 	if err := config.DB.First(&q, id).Error; err != nil {
-		respondErr(c, 404, "queue not found")
+		respondNotFound(c, "queue not found")
 		return
 	}
 	q.Description = req.Description
@@ -117,7 +121,7 @@ func (qc *QueueController) Update(c *gin.Context) {
 		q.Status = req.Status
 	}
 	if err := config.DB.Save(&q).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, q)
@@ -136,11 +140,11 @@ func (qc *QueueController) Update(c *gin.Context) {
 func (qc *QueueController) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if err := config.DB.Where("queue_id = ?", id).Delete(&models.QueueJob{}).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	if err := config.DB.Delete(&models.Queue{}, id).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, true)
@@ -160,7 +164,7 @@ func (qc *QueueController) Toggle(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var q models.Queue
 	if err := config.DB.First(&q, id).Error; err != nil {
-		respondErr(c, 404, "queue not found")
+		respondNotFound(c, "queue not found")
 		return
 	}
 	if q.Status == queue.StatusRunning {
@@ -169,7 +173,7 @@ func (qc *QueueController) Toggle(c *gin.Context) {
 		q.Status = queue.StatusRunning
 	}
 	if err := config.DB.Save(&q).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, q)
@@ -192,20 +196,38 @@ func (qc *QueueController) Stats(c *gin.Context) {
 		successToday           int64
 		failedToday            int64
 	)
-	config.DB.Model(&models.Queue{}).Count(&total)
-	config.DB.Model(&models.Queue{}).Where("status = ?", queue.StatusRunning).Count(&running)
+	if err := config.DB.Model(&models.Queue{}).Count(&total).Error; err != nil {
+		log.Printf("Stats count queues error: %v", err)
+	}
+	if err := config.DB.Model(&models.Queue{}).Where("status = ?", queue.StatusRunning).Count(&running).Error; err != nil {
+		log.Printf("Stats count running error: %v", err)
+	}
 	paused = total - running
 
-	config.DB.Model(&models.QueueJob{}).Count(&jobTotal)
-	config.DB.Model(&models.QueueJob{}).Where("status = ?", queue.JobPending).Count(&jobPending)
-	config.DB.Model(&models.QueueJob{}).Where("status = ?", queue.JobRunning).Count(&jobRunning)
-	config.DB.Model(&models.QueueJob{}).Where("status = ?", queue.JobSuccess).Count(&jobSuccess)
-	config.DB.Model(&models.QueueJob{}).Where("status = ?", queue.JobFailed).Count(&jobFailed)
+	if err := config.DB.Model(&models.QueueJob{}).Count(&jobTotal).Error; err != nil {
+		log.Printf("Stats count jobTotal error: %v", err)
+	}
+	if err := config.DB.Model(&models.QueueJob{}).Where("status = ?", queue.JobPending).Count(&jobPending).Error; err != nil {
+		log.Printf("Stats count jobPending error: %v", err)
+	}
+	if err := config.DB.Model(&models.QueueJob{}).Where("status = ?", queue.JobRunning).Count(&jobRunning).Error; err != nil {
+		log.Printf("Stats count jobRunning error: %v", err)
+	}
+	if err := config.DB.Model(&models.QueueJob{}).Where("status = ?", queue.JobSuccess).Count(&jobSuccess).Error; err != nil {
+		log.Printf("Stats count jobSuccess error: %v", err)
+	}
+	if err := config.DB.Model(&models.QueueJob{}).Where("status = ?", queue.JobFailed).Count(&jobFailed).Error; err != nil {
+		log.Printf("Stats count jobFailed error: %v", err)
+	}
 
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	config.DB.Model(&models.QueueJob{}).Where("completed_at >= ? AND status = ?", start, queue.JobSuccess).Count(&successToday)
-	config.DB.Model(&models.QueueJob{}).Where("completed_at >= ? AND status = ?", start, queue.JobFailed).Count(&failedToday)
+	if err := config.DB.Model(&models.QueueJob{}).Where("completed_at >= ? AND status = ?", start, queue.JobSuccess).Count(&successToday).Error; err != nil {
+		log.Printf("Stats count successToday error: %v", err)
+	}
+	if err := config.DB.Model(&models.QueueJob{}).Where("completed_at >= ? AND status = ?", start, queue.JobFailed).Count(&failedToday).Error; err != nil {
+		log.Printf("Stats count failedToday error: %v", err)
+	}
 
 	respondOK(c, gin.H{
 		"total":        total,
@@ -265,6 +287,9 @@ func (qc *QueueController) GetJobs(c *gin.Context) {
 	queueID, _ := strconv.Atoi(c.Param("id"))
 	page, _ := strconv.Atoi(c.DefaultQuery("pageNo", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	status := c.Query("status")
 	from := c.Query("from")
 	to := c.Query("to")
@@ -289,7 +314,7 @@ func (qc *QueueController) GetJobs(c *gin.Context) {
 
 	var rows []models.QueueJob
 	if err := q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, gin.H{"pageData": rows, "total": total})
@@ -312,12 +337,12 @@ func (qc *QueueController) AddJob(c *gin.Context) {
 	queueID, _ := strconv.Atoi(c.Param("id"))
 	var req jobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	var qm models.Queue
 	if err := config.DB.First(&qm, queueID).Error; err != nil {
-		respondErr(c, 404, "queue not found")
+		respondNotFound(c, "queue not found")
 		return
 	}
 
@@ -333,12 +358,12 @@ func (qc *QueueController) AddJob(c *gin.Context) {
 		UniqueKey:  req.UniqueKey,
 	})
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	var job models.QueueJob
 	if err := config.DB.First(&job, jobID).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, job)
@@ -361,12 +386,12 @@ func (qc *QueueController) BulkAddJobs(c *gin.Context) {
 	queueID, _ := strconv.Atoi(c.Param("id"))
 	var req bulkJobsRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.Items) == 0 {
-		respondErr(c, 400, "items required")
+		respondBadRequest(c, "items required")
 		return
 	}
 	var qm models.Queue
 	if err := config.DB.First(&qm, queueID).Error; err != nil {
-		respondErr(c, 404, "queue not found")
+		respondNotFound(c, "queue not found")
 		return
 	}
 
@@ -384,7 +409,7 @@ func (qc *QueueController) BulkAddJobs(c *gin.Context) {
 	}
 	count, err := queue.BulkPush(c.Request.Context(), qm.Name, items)
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, count)
@@ -403,7 +428,7 @@ func (qc *QueueController) BulkAddJobs(c *gin.Context) {
 func (qc *QueueController) KickJob(c *gin.Context) {
 	jobID, _ := strconv.Atoi(c.Param("jobId"))
 	if err := queue.Default().Kick(uint(jobID)); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 	respondOK(c, true)
@@ -423,7 +448,7 @@ func (qc *QueueController) KickAll(c *gin.Context) {
 	queueID, _ := strconv.Atoi(c.Param("id"))
 	n, err := queue.Default().KickAll(uint(queueID))
 	if err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, gin.H{"affected": n})
@@ -442,7 +467,7 @@ func (qc *QueueController) KickAll(c *gin.Context) {
 func (qc *QueueController) DeleteJob(c *gin.Context) {
 	jobID, _ := strconv.Atoi(c.Param("jobId"))
 	if err := config.DB.Delete(&models.QueueJob{}, jobID).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, true)
@@ -474,7 +499,7 @@ func (qc *QueueController) ClearJobs(c *gin.Context) {
 		}
 	}
 	if err := q.Delete(&models.QueueJob{}).Error; err != nil {
-		respondErr(c, 500, err.Error())
+		respondInternal(c, err.Error())
 		return
 	}
 	respondOK(c, true)

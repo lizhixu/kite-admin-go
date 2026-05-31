@@ -8,7 +8,7 @@ type Queue struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`
 	Name          string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"name"`
 	Description   string    `gorm:"type:varchar(255)" json:"description"`
-	Status        string    `gorm:"type:varchar(16);default:'RUNNING'" json:"status"` // RUNNING / PAUSED
+	Status        string    `gorm:"type:varchar(16);default:'RUNNING';index" json:"status"` // RUNNING / PAUSED
 	Concurrency   int       `gorm:"default:3" json:"concurrency"`
 	Timeout       int       `gorm:"default:60" json:"timeout"`
 	MaxRetries    int       `json:"maxRetries"`

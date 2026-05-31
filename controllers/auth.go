@@ -63,49 +63,29 @@ func (ac *AuthController) Login(c *gin.Context) {
 
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.Response{
-			Code:      400,
-			Message:   err.Error(),
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	// 校验验证码
 	captchaID, err := c.Cookie("captcha_id")
 	if err != nil || captchaID == "" {
-		c.JSON(http.StatusOK, models.Response{
-			Code:      10003,
-			Message:   "验证码已过期，请刷新",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondErr(c, http.StatusUnauthorized, 10003, "验证码已过期，请刷新")
 		return
 	}
 	if !utils.VerifyCaptcha(captchaID, strings.TrimSpace(req.Captcha)) {
-		c.JSON(http.StatusOK, models.Response{
-			Code:      10003,
-			Message:   "验证码错误",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondErr(c, http.StatusUnauthorized, 10003, "验证码错误")
 		return
 	}
 
 	var user models.User
 	if err := config.DB.Preload("Roles").Preload("Profile").Where("username = ?", req.Username).First(&user).Error; err != nil {
-		c.JSON(http.StatusOK, models.Response{
-			Code:      10004,
-			Message:   "账号或密码错误",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondErr(c, http.StatusUnauthorized, 10004, "账号或密码错误")
 		return
 	}
 
 	if !utils.CheckPassword(req.Password, user.Password) {
-		c.JSON(http.StatusOK, models.Response{
-			Code:      10004,
-			Message:   "账号或密码错误",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondErr(c, http.StatusUnauthorized, 10004, "账号或密码错误")
 		return
 	}
 
@@ -117,23 +97,12 @@ func (ac *AuthController) Login(c *gin.Context) {
 	cfg := config.LoadConfig()
 	token, err := utils.GenerateToken(user.ID, user.Username, roleCode, cfg.JWT.Secret, cfg.JWT.ExpireTime)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:      500,
-			Message:   "Failed to generate token",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondInternal(c, "Failed to generate token")
 		return
 	}
 
 	recordLoginLog(user.ID, user.Username, ip, userAgent)
-	c.JSON(http.StatusOK, models.Response{
-		Code:    0,
-		Message: "OK",
-		Data: gin.H{
-			"accessToken": token,
-		},
-		OriginUrl: c.Request.URL.Path,
-	})
+	respondOK(c, gin.H{"accessToken": token})
 }
 
 // GetCaptcha 获取验证码
@@ -146,11 +115,7 @@ func (ac *AuthController) Login(c *gin.Context) {
 func (ac *AuthController) GetCaptcha(c *gin.Context) {
 	id, imgBytes, err := utils.GenerateCaptcha()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:      500,
-			Message:   "Failed to generate captcha",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondInternal(c, "Failed to generate captcha")
 		return
 	}
 
@@ -176,14 +141,28 @@ func (ac *AuthController) SwitchRole(c *gin.Context) {
 	userID := c.GetUint("userID")
 	username := c.GetString("username")
 
+	// 校验用户是否拥有目标角色
+	var user models.User
+	if err := config.DB.Preload("Roles").First(&user, userID).Error; err != nil {
+		respondForbidden(c, "用户不存在")
+		return
+	}
+	allowed := false
+	for _, r := range user.Roles {
+		if r.Code == roleCode {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		respondForbidden(c, "无权切换到该角色")
+		return
+	}
+
 	cfg := config.LoadConfig()
 	token, err := utils.GenerateToken(userID, username, roleCode, cfg.JWT.Secret, cfg.JWT.ExpireTime)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:      500,
-			Message:   "Failed to generate token",
-			OriginUrl: c.Request.URL.Path,
-		})
+		respondInternal(c, "Failed to generate token")
 		return
 	}
 
@@ -206,10 +185,5 @@ func (ac *AuthController) SwitchRole(c *gin.Context) {
 // @Success      200 {object} models.Response "成功"
 // @Router       /auth/logout [post]
 func (ac *AuthController) Logout(c *gin.Context) {
-	c.JSON(http.StatusOK, models.Response{
-		Code:      0,
-		Message:   "OK",
-		Data:      true,
-		OriginUrl: c.Request.URL.Path,
-	})
+	respondOK(c, true)
 }

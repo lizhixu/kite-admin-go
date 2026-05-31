@@ -3,6 +3,8 @@ package routes
 import (
 	"backend/controllers"
 	"backend/middleware"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -12,8 +14,13 @@ import (
 func SetupRoutes(r *gin.Engine) {
 	r.Use(middleware.CORSMiddleware())
 
-	// Swagger UI
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger UI（生产环境需要认证）
+	swaggerHandler := ginSwagger.WrapHandler(swaggerFiles.Handler)
+	if os.Getenv("APP_ENV") == "production" {
+		r.GET("/swagger/*any", middleware.AuthMiddleware(), swaggerHandler)
+	} else {
+		r.GET("/swagger/*any", swaggerHandler)
+	}
 
 	authCtrl := &controllers.AuthController{}
 	userCtrl := &controllers.UserController{}
@@ -32,7 +39,7 @@ func SetupRoutes(r *gin.Engine) {
 	// 认证相关路由（无需认证）
 	auth := r.Group("/auth")
 	{
-		auth.POST("/login", authCtrl.Login)
+		auth.POST("/login", middleware.RateLimit(5, time.Minute), authCtrl.Login)
 		auth.GET("/captcha", authCtrl.GetCaptcha)
 		auth.POST("/logout", authCtrl.Logout)
 		auth.GET("/system/config", sysConfigCtrl.Get)
@@ -56,7 +63,7 @@ func SetupRoutes(r *gin.Engine) {
 		api.PATCH("/user/password/reset/:id", middleware.RequirePermission("ResetPassword"), userCtrl.ResetPassword)
 
 		// 角色相关
-		api.GET("/role/page", roleCtrl.GetPage)
+		api.GET("/role/page", middleware.RequirePermission("RoleMgt"), roleCtrl.GetPage)
 		api.GET("/role", roleCtrl.GetAll)
 		api.POST("/role", middleware.RequirePermission("AddRole"), roleCtrl.Create)
 		api.PATCH("/role/:id", middleware.RequirePermission("EditRole"), roleCtrl.Update)
@@ -74,18 +81,18 @@ func SetupRoutes(r *gin.Engine) {
 		api.DELETE("/permission/:id", middleware.RequirePermission("DeleteResource"), permCtrl.Delete)
 
 		// 日志相关
-		api.GET("/syslog/list", syslogCtrl.GetLogs)
-		api.GET("/loginlog/list", loginLogCtrl.GetLogs)
+		api.GET("/syslog/list", middleware.RequirePermission("LogMgt"), syslogCtrl.GetLogs)
+		api.GET("/loginlog/list", middleware.RequirePermission("LoginLog"), loginLogCtrl.GetLogs)
 
 		// 系统配置
 		api.GET("/system/config", sysConfigCtrl.Get)
 		api.PUT("/system/config", middleware.RequirePermission("SaveSystemConfig"), sysConfigCtrl.Save)
 
 		// 定时任务
-		api.GET("/task/page", taskCtrl.GetPage)
-		api.GET("/task/funcs", taskCtrl.GetFuncs)
-		api.GET("/task/stats", taskCtrl.Stats)
-		api.GET("/task/preview-next", taskCtrl.PreviewNext)
+		api.GET("/task/page", middleware.RequirePermission("ScheduleTask"), taskCtrl.GetPage)
+		api.GET("/task/funcs", middleware.RequirePermission("ScheduleTask"), taskCtrl.GetFuncs)
+		api.GET("/task/stats", middleware.RequirePermission("ScheduleTask"), taskCtrl.Stats)
+		api.GET("/task/preview-next", middleware.RequirePermission("ScheduleTask"), taskCtrl.PreviewNext)
 		api.POST("/task", middleware.RequirePermission("AddTask"), taskCtrl.Create)
 		api.PATCH("/task/:id", middleware.RequirePermission("EditTask"), taskCtrl.Update)
 		api.DELETE("/task/:id", middleware.RequirePermission("DeleteTask"), taskCtrl.Delete)
@@ -93,18 +100,18 @@ func SetupRoutes(r *gin.Engine) {
 		api.POST("/task/:id/run", middleware.RequirePermission("RunTask"), taskCtrl.Run)
 		api.POST("/task/bulk/delete", middleware.RequirePermission("DeleteTask"), taskCtrl.BulkDelete)
 		api.POST("/task/bulk/toggle", middleware.RequirePermission("EditTask"), taskCtrl.BulkToggle)
-		api.GET("/task/log/page", taskCtrl.GetLogs)
+		api.GET("/task/log/page", middleware.RequirePermission("ScheduleTask"), taskCtrl.GetLogs)
 
 		// 队列管理
-		api.GET("/queue/page", queueCtrl.GetPage)
-		api.GET("/queue/stats", queueCtrl.Stats)
-		api.GET("/queue/handlers", queueCtrl.GetHandlers)
-		api.GET("/queue/:id", queueCtrl.GetOne)
+		api.GET("/queue/page", middleware.RequirePermission("QueueMgt"), queueCtrl.GetPage)
+		api.GET("/queue/stats", middleware.RequirePermission("QueueMgt"), queueCtrl.Stats)
+		api.GET("/queue/handlers", middleware.RequirePermission("QueueMgt"), queueCtrl.GetHandlers)
+		api.GET("/queue/:id", middleware.RequirePermission("QueueDetail"), queueCtrl.GetOne)
 		api.PATCH("/queue/:id", middleware.RequirePermission("EditQueue"), queueCtrl.Update)
 		api.DELETE("/queue/:id", middleware.RequirePermission("DeleteQueue"), queueCtrl.Delete)
 		api.PATCH("/queue/:id/toggle", middleware.RequirePermission("EditQueue"), queueCtrl.Toggle)
 		api.POST("/queue/:id/kick", middleware.RequirePermission("KickQueueJob"), queueCtrl.KickAll)
-		api.GET("/queue/:id/jobs", queueCtrl.GetJobs)
+		api.GET("/queue/:id/jobs", middleware.RequirePermission("QueueDetail"), queueCtrl.GetJobs)
 		api.POST("/queue/:id/job", middleware.RequirePermission("AddQueueJob"), queueCtrl.AddJob)
 		api.POST("/queue/:id/jobs/bulk", middleware.RequirePermission("AddQueueJob"), queueCtrl.BulkAddJobs)
 		api.DELETE("/queue/:id/jobs", middleware.RequirePermission("DeleteQueue"), queueCtrl.ClearJobs)
@@ -112,8 +119,8 @@ func SetupRoutes(r *gin.Engine) {
 		api.DELETE("/queue/job/:jobId", middleware.RequirePermission("DeleteQueue"), queueCtrl.DeleteJob)
 
 		// 媒体库
-		api.POST("/media/upload", middleware.RequirePermission("UploadMedia"), mediaCtrl.Upload)
-		api.GET("/media/page", mediaCtrl.GetPage)
+		api.POST("/media/upload", middleware.RateLimit(30, time.Minute), middleware.RequirePermission("UploadMedia"), mediaCtrl.Upload)
+		api.GET("/media/page", middleware.RequirePermission("MediaList"), mediaCtrl.GetPage)
 		api.DELETE("/media/:id", middleware.RequirePermission("DeleteMedia"), mediaCtrl.Delete)
 		api.POST("/media/bulk/delete", middleware.RequirePermission("DeleteMedia"), mediaCtrl.BulkDelete)
 		api.POST("/media/move", middleware.RequirePermission("UploadMedia"), mediaCtrl.MoveMedia)
@@ -126,7 +133,7 @@ func SetupRoutes(r *gin.Engine) {
 		api.DELETE("/media/folder/:id", middleware.RequirePermission("ManageFolder"), mediaCtrl.DeleteFolder)
 
 		// 存储配置
-		api.GET("/storage/config", mediaCtrl.ListConfigs)
+		api.GET("/storage/config", middleware.RequirePermission("ManageStorage"), mediaCtrl.ListConfigs)
 		api.POST("/storage/config", middleware.RequirePermission("ManageStorage"), mediaCtrl.CreateConfig)
 		api.PATCH("/storage/config/:id", middleware.RequirePermission("ManageStorage"), mediaCtrl.UpdateConfig)
 		api.DELETE("/storage/config/:id", middleware.RequirePermission("ManageStorage"), mediaCtrl.DeleteConfig)
@@ -145,15 +152,15 @@ func SetupRoutes(r *gin.Engine) {
 		api.PATCH("/message/bulk/read", msgCtrl.BulkMarkRead)
 
 		// 邮件配置
-		api.GET("/email/config", emailCtrl.Get)
+		api.GET("/email/config", middleware.RequirePermission("EmailConfigMgt"), emailCtrl.Get)
 		api.PUT("/email/config", middleware.RequirePermission("SaveEmailConfig"), emailCtrl.Save)
 		api.POST("/email/config/test", middleware.RequirePermission("TestEmailConfig"), emailCtrl.Test)
 
 		// 邮件模板
-		api.GET("/email-template/list", tmplCtrl.GetList)
-		api.GET("/email-template/:id", tmplCtrl.GetOne)
+		api.GET("/email-template/list", middleware.RequirePermission("EmailTemplateMgt"), tmplCtrl.GetList)
+		api.GET("/email-template/:id", middleware.RequirePermission("EmailTemplateMgt"), tmplCtrl.GetOne)
 		api.PUT("/email-template/:id", middleware.RequirePermission("SaveEmailTemplate"), tmplCtrl.Update)
-		api.POST("/email-template/:id/preview", tmplCtrl.Preview)
+		api.POST("/email-template/:id/preview", middleware.RequirePermission("EmailTemplateMgt"), tmplCtrl.Preview)
 	}
 
 	// SSE 路由（仅 AuthMiddleware，跳过 OperationLog 避免缓冲响应）

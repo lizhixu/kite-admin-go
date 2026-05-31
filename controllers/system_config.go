@@ -47,7 +47,7 @@ func (sc *SystemConfigController) Get(c *gin.Context) {
 func (sc *SystemConfigController) Save(c *gin.Context) {
 	var req systemConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -62,13 +62,13 @@ func (sc *SystemConfigController) Save(c *gin.Context) {
 	if err != nil {
 		// Create
 		if err := config.DB.Create(&cfg).Error; err != nil {
-			respondErr(c, 500, "Failed to save system config")
+			respondInternal(c, "Failed to save system config")
 			return
 		}
 	} else {
 		// Update
 		if err := config.DB.Save(&cfg).Error; err != nil {
-			respondErr(c, 500, "Failed to save system config")
+			respondInternal(c, "Failed to save system config")
 			return
 		}
 	}

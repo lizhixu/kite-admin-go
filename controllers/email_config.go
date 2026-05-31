@@ -57,7 +57,7 @@ func (ec *EmailConfigController) Get(c *gin.Context) {
 func (ec *EmailConfigController) Save(c *gin.Context) {
 	var req emailConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -77,13 +77,13 @@ func (ec *EmailConfigController) Save(c *gin.Context) {
 	if err != nil {
 		// Create
 		if err := config.DB.Create(&cfg).Error; err != nil {
-			respondErr(c, 500, "Failed to save email config")
+			respondInternal(c, "Failed to save email config")
 			return
 		}
 	} else {
 		// Update
 		if err := config.DB.Save(&cfg).Error; err != nil {
-			respondErr(c, 500, "Failed to save email config")
+			respondInternal(c, "Failed to save email config")
 			return
 		}
 	}
@@ -103,26 +103,26 @@ func (ec *EmailConfigController) Save(c *gin.Context) {
 func (ec *EmailConfigController) Test(c *gin.Context) {
 	var cfg models.EmailConfig
 	if err := config.DB.First(&cfg).Error; err != nil {
-		respondErr(c, 400, "Email config not found")
+		respondBadRequest(c, "Email config not found")
 		return
 	}
 
 	if !cfg.Enabled {
-		respondErr(c, 400, "Email service is disabled")
+		respondBadRequest(c, "Email service is disabled")
 		return
 	}
 
 	userID := c.GetUint("userID")
 	var profile models.Profile
 	if err := config.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil || profile.Email == nil || *profile.Email == "" {
-		respondErr(c, 400, "请先绑定邮箱")
+		respondBadRequest(c, "请先绑定邮箱")
 		return
 	}
 
 	// Get SYSTEM template for test email
 	tmpl := services.GetTemplate("SYSTEM")
 	if tmpl == nil {
-		respondErr(c, 500, "Email template not found")
+		respondInternal(c, "Email template not found")
 		return
 	}
 
@@ -144,7 +144,7 @@ func (ec *EmailConfigController) Test(c *gin.Context) {
 	})
 
 	if _, err := queue.Push(context.Background(), "email.test", string(payload)); err != nil {
-		respondErr(c, 500, fmt.Sprintf("Failed to queue test email: %v", err))
+		respondInternal(c, fmt.Sprintf("Failed to queue test email: %v", err))
 		return
 	}
 

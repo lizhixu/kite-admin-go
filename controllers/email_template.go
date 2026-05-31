@@ -33,7 +33,7 @@ type previewEmailTemplateRequest struct {
 func (ec *EmailTemplateController) GetList(c *gin.Context) {
 	var templates []models.EmailTemplate
 	if err := config.DB.Order("scene ASC").Find(&templates).Error; err != nil {
-		respondErr(c, 500, "Failed to query templates")
+		respondInternal(c, "Failed to query templates")
 		return
 	}
 	respondOK(c, templates)
@@ -53,7 +53,7 @@ func (ec *EmailTemplateController) GetOne(c *gin.Context) {
 	id := c.Param("id")
 	var tmpl models.EmailTemplate
 	if err := config.DB.First(&tmpl, id).Error; err != nil {
-		respondErr(c, 404, "Template not found")
+		respondNotFound(c, "Template not found")
 		return
 	}
 	respondOK(c, tmpl)
@@ -76,13 +76,13 @@ func (ec *EmailTemplateController) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req updateEmailTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	var tmpl models.EmailTemplate
 	if err := config.DB.First(&tmpl, id).Error; err != nil {
-		respondErr(c, 404, "Template not found")
+		respondNotFound(c, "Template not found")
 		return
 	}
 
@@ -91,7 +91,7 @@ func (ec *EmailTemplateController) Update(c *gin.Context) {
 	tmpl.Content = req.Content
 
 	if err := config.DB.Save(&tmpl).Error; err != nil {
-		respondErr(c, 500, "Failed to update template")
+		respondInternal(c, "Failed to update template")
 		return
 	}
 
@@ -115,13 +115,13 @@ func (ec *EmailTemplateController) Preview(c *gin.Context) {
 	id := c.Param("id")
 	var req previewEmailTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondErr(c, 400, err.Error())
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	var tmpl models.EmailTemplate
 	if err := config.DB.First(&tmpl, id).Error; err != nil {
-		respondErr(c, 404, "Template not found")
+		respondNotFound(c, "Template not found")
 		return
 	}
 
