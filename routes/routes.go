@@ -83,6 +83,7 @@ func SetupRoutes(r *gin.Engine) {
 		// 日志相关
 		api.GET("/syslog/list", middleware.RequirePermission("LogMgt"), syslogCtrl.GetLogs)
 		api.GET("/loginlog/list", middleware.RequirePermission("LoginLog"), loginLogCtrl.GetLogs)
+		api.GET("/loginlog/mine", loginLogCtrl.GetMyLogs)
 
 		// 系统配置
 		api.GET("/system/config", sysConfigCtrl.Get)
@@ -123,17 +124,18 @@ func SetupRoutes(r *gin.Engine) {
 		api.GET("/media/page", middleware.RequirePermission("MediaList"), mediaCtrl.GetPage)
 		api.DELETE("/media/:id", middleware.RequirePermission("DeleteMedia"), mediaCtrl.Delete)
 		api.POST("/media/bulk/delete", middleware.RequirePermission("DeleteMedia"), mediaCtrl.BulkDelete)
-		api.POST("/media/move", middleware.RequirePermission("UploadMedia"), mediaCtrl.MoveMedia)
+		api.POST("/media/move", middleware.RequirePermission("MoveMedia"), mediaCtrl.MoveMedia)
 
 		// 媒体文件夹
-		api.GET("/media/folder/tree", mediaCtrl.ListFolders)
-		api.GET("/media/folder/resolve", mediaCtrl.ResolveFolder)
+		api.GET("/media/folder/tree", middleware.RequirePermission("MediaList"), mediaCtrl.ListFolders)
+		api.GET("/media/folder/resolve", middleware.RequirePermission("MediaList"), mediaCtrl.ResolveFolder)
 		api.POST("/media/folder", middleware.RequirePermission("ManageFolder"), mediaCtrl.CreateFolder)
 		api.PATCH("/media/folder/:id", middleware.RequirePermission("ManageFolder"), mediaCtrl.RenameFolder)
 		api.DELETE("/media/folder/:id", middleware.RequirePermission("ManageFolder"), mediaCtrl.DeleteFolder)
 
 		// 存储配置
-		api.GET("/storage/config", middleware.RequirePermission("ManageStorage"), mediaCtrl.ListConfigs)
+		api.GET("/storage/options", middleware.RequirePermission("MediaList"), mediaCtrl.ListStorageOptions)
+		api.GET("/storage/config", middleware.RequirePermission("StorageMgt"), mediaCtrl.ListConfigs)
 		api.POST("/storage/config", middleware.RequirePermission("ManageStorage"), mediaCtrl.CreateConfig)
 		api.PATCH("/storage/config/:id", middleware.RequirePermission("ManageStorage"), mediaCtrl.UpdateConfig)
 		api.DELETE("/storage/config/:id", middleware.RequirePermission("ManageStorage"), mediaCtrl.DeleteConfig)

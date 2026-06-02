@@ -30,6 +30,44 @@ type roleUsersRequest struct {
 	UserIds []uint `json:"userIds" binding:"required"`
 }
 
+func withAncestorPermissionIDs(ids []uint) []uint {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	var perms []models.Permission
+	if err := config.DB.Find(&perms).Error; err != nil {
+		return ids
+	}
+
+	byID := make(map[uint]models.Permission, len(perms))
+	result := make(map[uint]struct{}, len(ids))
+	for _, p := range perms {
+		byID[p.ID] = p
+	}
+
+	var addWithParents func(uint)
+	addWithParents = func(id uint) {
+		if _, ok := result[id]; ok {
+			return
+		}
+		result[id] = struct{}{}
+		if p, ok := byID[id]; ok && p.ParentID != nil {
+			addWithParents(*p.ParentID)
+		}
+	}
+
+	for _, id := range ids {
+		addWithParents(id)
+	}
+
+	out := make([]uint, 0, len(result))
+	for id := range result {
+		out = append(out, id)
+	}
+	return out
+}
+
 // GetPage 分页查询角色
 // @Summary      分页查询角色
 // @Description  分页查询角色列表，支持按名称搜索
@@ -138,9 +176,10 @@ func (rc *RoleController) Create(c *gin.Context) {
 	}
 
 	// 分配权限
-	if len(req.PermissionIds) > 0 {
+	permissionIDs := withAncestorPermissionIDs(req.PermissionIds)
+	if len(permissionIDs) > 0 {
 		var permissions []models.Permission
-		if err := config.DB.Where("id IN ?", req.PermissionIds).Find(&permissions).Error; err == nil {
+		if err := config.DB.Where("id IN ?", permissionIDs).Find(&permissions).Error; err == nil {
 			if err := config.DB.Model(&role).Association("Permissions").Append(&permissions); err != nil {
 				log.Printf("Create role assign permissions error: %v", err)
 			}
@@ -202,10 +241,13 @@ func (rc *RoleController) Update(c *gin.Context) {
 
 	// 更新权限关联
 	if req.PermissionIds != nil {
+		permissionIDs := withAncestorPermissionIDs(req.PermissionIds)
 		var permissions []models.Permission
-		if err := config.DB.Where("id IN ?", req.PermissionIds).Find(&permissions).Error; err != nil {
-			respondInternal(c, "Failed to query permissions")
-			return
+		if len(permissionIDs) > 0 {
+			if err := config.DB.Where("id IN ?", permissionIDs).Find(&permissions).Error; err != nil {
+				respondInternal(c, "Failed to query permissions")
+				return
+			}
 		}
 		if err := config.DB.Model(&role).Association("Permissions").Replace(&permissions); err != nil {
 			respondInternal(c, "Failed to update role permissions")

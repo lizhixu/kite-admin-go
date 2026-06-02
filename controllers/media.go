@@ -329,9 +329,11 @@ func (mc *MediaController) MoveMedia(c *gin.Context) {
 		}
 		folderPath = f.Path
 		// 同一存储校验
-		if len(rows) > 0 && rows[0].ConfigID != f.ConfigID {
-			respondBadRequest(c, "folder belongs to a different storage")
-			return
+		for _, m := range rows {
+			if m.ConfigID != f.ConfigID {
+				respondBadRequest(c, "folder belongs to a different storage")
+				return
+			}
 		}
 	}
 	err := config.DB.Model(&models.Media{}).Where("id IN ?", req.IDs).Updates(map[string]any{
@@ -648,12 +650,18 @@ func (mc *MediaController) ResolveFolder(c *gin.Context) {
 	}
 	segments := strings.Split(folderPath, "/")
 	autoCreate := c.Query("autoCreate") == "1"
+	if autoCreate && !middleware.HasPermission(c, "ManageFolder") {
+		respondForbidden(c, "permission denied")
+		return
+	}
 
 	var currentParentID *uint
 	var currentFolder models.MediaFolder
 	for _, seg := range segments {
-		if seg == "" {
-			continue
+		seg = strings.TrimSpace(seg)
+		if seg == "" || strings.ContainsAny(seg, "/\\") {
+			respondBadRequest(c, "invalid folder path")
+			return
 		}
 		// 查找同级同名文件夹
 		q := config.DB.Model(&models.MediaFolder{}).Where("config_id = ? AND name = ?", configID, seg)
@@ -729,6 +737,35 @@ func (mc *MediaController) ListConfigs(c *gin.Context) {
 		return
 	}
 	respondOK(c, rows)
+}
+
+// ListStorageOptions 获取媒体可用存储选项
+// @Summary      获取媒体可用存储选项
+// @Description  获取媒体库/选择器使用的非敏感存储配置
+// @Tags         存储配置
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} models.Response{data=[]object} "成功"
+// @Router       /storage/options [get]
+func (mc *MediaController) ListStorageOptions(c *gin.Context) {
+	var rows []models.StorageConfig
+	if err := config.DB.Where("enabled = ?", true).Order("is_default DESC, id ASC").Find(&rows).Error; err != nil {
+		respondInternal(c, err.Error())
+		return
+	}
+	options := make([]gin.H, 0, len(rows))
+	for _, row := range rows {
+		options = append(options, gin.H{
+			"id":              row.ID,
+			"name":            row.Name,
+			"type":            row.Type,
+			"enabled":         row.Enabled,
+			"isDefault":       row.IsDefault,
+			"allowExtensions": row.AllowExtensions,
+			"maxSizeMB":       row.MaxSizeMB,
+		})
+	}
+	respondOK(c, options)
 }
 
 // CreateConfig 创建存储配置
@@ -1058,18 +1095,5 @@ func currentUserID(c *gin.Context) uint {
 
 // canViewAllMedia SUPER_ADMIN 或拥有 ViewAllMedia 权限的角色可以跨用户查看/管理媒体
 func canViewAllMedia(c *gin.Context) bool {
-	roleCode := c.GetString("roleCode")
-	if roleCode == models.RoleSuperAdmin {
-		return true
-	}
-	permissions, ok := middleware.GetRolePermissions(roleCode)
-	if !ok {
-		return false
-	}
-	for _, p := range permissions {
-		if p.Code == "ViewAllMedia" && p.Enable != nil && *p.Enable {
-			return true
-		}
-	}
-	return false
+	return middleware.HasPermission(c, "ViewAllMedia")
 }

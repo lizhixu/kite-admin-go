@@ -12,8 +12,8 @@ import (
 
 // 角色权限缓存（避免每次请求查库）
 var (
-	permCache   = make(map[string]permCacheEntry)
-	permCacheMu sync.RWMutex
+	permCache    = make(map[string]permCacheEntry)
+	permCacheMu  sync.RWMutex
 	permCacheTTL = 5 * time.Minute
 )
 
@@ -61,6 +61,24 @@ func InvalidateAllPermCache() {
 	permCacheMu.Lock()
 	permCache = make(map[string]permCacheEntry)
 	permCacheMu.Unlock()
+}
+
+// HasPermission 检查当前请求角色是否拥有指定权限
+func HasPermission(c *gin.Context, permissionCode string) bool {
+	roleCode := c.GetString("roleCode")
+	if roleCode == models.RoleSuperAdmin {
+		return true
+	}
+	permissions, ok := GetRolePermissions(roleCode)
+	if !ok {
+		return false
+	}
+	for _, perm := range permissions {
+		if perm.Code == permissionCode && perm.Enable != nil && *perm.Enable {
+			return true
+		}
+	}
+	return false
 }
 
 // PermissionMiddleware 权限校验中间件（带缓存）

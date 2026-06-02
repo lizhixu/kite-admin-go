@@ -78,6 +78,7 @@ func syncPermissions() error {
 		codeSet[p.Code] = struct{}{}
 	}
 
+	moveMediaCreated := false
 	for _, p := range perms {
 		var existing models.Permission
 		err := DB.Where("code = ?", p.Code).First(&existing).Error
@@ -100,6 +101,9 @@ func syncPermissions() error {
 			// 不存在：直接插入（使用预定义 ID）
 			if err := DB.Create(&p).Error; err != nil {
 				return fmt.Errorf("create permission %s: %w", p.Code, err)
+			}
+			if p.Code == "MoveMedia" {
+				moveMediaCreated = true
 			}
 		} else {
 			return fmt.Errorf("query permission %s: %w", p.Code, err)
@@ -127,6 +131,12 @@ func syncPermissions() error {
 		log.Printf("Removed %d orphan permission(s): %v", len(orphanIDs), orphanIDs)
 	}
 
+	if moveMediaCreated {
+		if err := backfillMoveMediaPermission(); err != nil {
+			return err
+		}
+	}
+
 	// 将所有权限重新授权给超级管理员
 	var superAdmin models.Role
 	var allPerms []models.Permission
@@ -136,6 +146,32 @@ func syncPermissions() error {
 	}
 
 	log.Println("Permissions synced successfully")
+	return nil
+}
+
+func backfillMoveMediaPermission() error {
+	var uploadMedia, moveMedia models.Permission
+	if err := DB.Where("code = ?", "UploadMedia").First(&uploadMedia).Error; err != nil {
+		return fmt.Errorf("find UploadMedia permission: %w", err)
+	}
+	if err := DB.Where("code = ?", "MoveMedia").First(&moveMedia).Error; err != nil {
+		return fmt.Errorf("find MoveMedia permission: %w", err)
+	}
+
+	var roleIDs []uint
+	if err := DB.Table("role_permissions").Where("permission_id = ?", uploadMedia.ID).Pluck("role_id", &roleIDs).Error; err != nil {
+		return fmt.Errorf("find roles with UploadMedia: %w", err)
+	}
+	for _, roleID := range roleIDs {
+		if err := DB.Exec(
+			"INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+			roleID,
+			moveMedia.ID,
+		).Error; err != nil {
+			return fmt.Errorf("backfill MoveMedia for role %d: %w", roleID, err)
+		}
+	}
+	log.Printf("Backfilled MoveMedia permission to %d role(s)", len(roleIDs))
 	return nil
 }
 
@@ -194,9 +230,10 @@ func defaultPermissions() []models.Permission {
 		// 子菜单：媒体列表
 		{ID: 34, Name: "媒体列表", Code: "MediaList", Type: "MENU", ParentID: ptrUint(30), Path: ptrStr("/media/library"), Icon: ptrStr("i-fe:folder"), Component: ptrStr("/src/views/media/library/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
 		{ID: 31, Name: "上传文件", Code: "UploadMedia", Type: "BUTTON", ParentID: ptrUint(34), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
-		{ID: 32, Name: "删除文件", Code: "DeleteMedia", Type: "BUTTON", ParentID: ptrUint(34), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
-		{ID: 36, Name: "管理文件夹", Code: "ManageFolder", Type: "BUTTON", ParentID: ptrUint(34), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},
-		{ID: 37, Name: "查看全部媒体", Code: "ViewAllMedia", Type: "BUTTON", ParentID: ptrUint(34), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
+		{ID: 38, Name: "移动文件", Code: "MoveMedia", Type: "BUTTON", ParentID: ptrUint(34), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
+		{ID: 32, Name: "删除文件", Code: "DeleteMedia", Type: "BUTTON", ParentID: ptrUint(34), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},
+		{ID: 36, Name: "管理文件夹", Code: "ManageFolder", Type: "BUTTON", ParentID: ptrUint(34), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
+		{ID: 37, Name: "查看全部媒体", Code: "ViewAllMedia", Type: "BUTTON", ParentID: ptrUint(34), Show: ptrBool(true), Enable: ptrBool(true), Order: 5},
 		// 子菜单：存储配置
 		{ID: 35, Name: "存储配置", Code: "StorageMgt", Type: "MENU", ParentID: ptrUint(30), Path: ptrStr("/media/storage"), Icon: ptrStr("i-fe:hard-drive"), Component: ptrStr("/src/views/media/storage/index.vue"), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
 		{ID: 33, Name: "管理存储", Code: "ManageStorage", Type: "BUTTON", ParentID: ptrUint(35), Show: ptrBool(true), Enable: ptrBool(true), Order: 1},
