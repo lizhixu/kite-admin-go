@@ -188,9 +188,15 @@ definitions:
     type: object
   controllers.jobRequest:
     properties:
+      delayUntil:
+        type: string
       maxRetries:
         type: integer
       payload:
+        type: string
+      priority:
+        type: integer
+      uniqueKey:
         type: string
     type: object
   controllers.moveMediaRequest:
@@ -481,6 +487,11 @@ definitions:
     type: object
   models.Media:
     properties:
+      accessUrl:
+        type: string
+      bizType:
+        description: 空 = 媒体库素材；其它如 avatar/rich-text/message-attach 为业务上传
+        type: string
       configId:
         type: integer
       createTime:
@@ -509,8 +520,6 @@ definitions:
       uploaderId:
         type: integer
       uploaderName:
-        type: string
-      url:
         type: string
     type: object
   models.MediaFolder:
@@ -655,6 +664,8 @@ definitions:
         type: string
       createdAt:
         type: string
+      delayUntil:
+        type: string
       duration:
         type: integer
       error:
@@ -665,6 +676,8 @@ definitions:
         type: integer
       payload:
         type: string
+      priority:
+        type: integer
       queueId:
         type: integer
       result:
@@ -674,6 +687,8 @@ definitions:
       startedAt:
         type: string
       status:
+        type: string
+      uniqueKey:
         type: string
     type: object
   models.Response:
@@ -1195,6 +1210,44 @@ paths:
       security:
       - BearerAuth: []
       summary: 查询登录日志
+      tags:
+      - 登录日志
+  /loginlog/mine:
+    get:
+      description: 首页使用：分页查询当前登录用户的登录成功日志，不需要 LoginLog 菜单权限
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageNo
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/models.PageData'
+                  - properties:
+                      pageData:
+                        items:
+                          $ref: '#/definitions/models.LoginLog'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 查询当前用户登录日志
       tags:
       - 登录日志
   /media/{id}:
@@ -2872,6 +2925,28 @@ paths:
       summary: 测试存储配置
       tags:
       - 存储配置
+  /storage/options:
+    get:
+      description: 获取媒体库/选择器使用的非敏感存储配置
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    type: object
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取媒体可用存储选项
+      tags:
+      - 存储配置
   /syslog/list:
     get:
       description: 分页查询系统操作日志，支持按用户名、HTTP方法、状态码筛选
@@ -3362,6 +3437,59 @@ paths:
       summary: 获取任务统计
       tags:
       - 定时任务
+  /upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 登录用户即可使用，按 bizType 白名单（avatar/rich-text/message-attach）限制；存储固定走系统默认；路径
+        {bizType}/YYYY/MM/DD
+      parameters:
+      - description: 业务类型 avatar/rich-text/message-attach
+        in: formData
+        name: bizType
+        required: true
+        type: string
+      - description: 上传文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Media'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 业务上传
+      tags:
+      - 上传
+  /upload/specs:
+    get:
+      description: 返回每个 bizType 的扩展名/mime/大小限制，供前端做客户端校验
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取业务上传白名单
+      tags:
+      - 上传
   /user:
     get:
       description: 分页查询用户列表，支持按用户名搜索

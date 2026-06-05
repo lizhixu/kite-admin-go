@@ -4,6 +4,8 @@ import (
 	"backend/models"
 	"log"
 	"os"
+
+	"gorm.io/gorm"
 )
 
 // RegisteredModels 列出所有需要自动迁移的模型，作为单一事实来源
@@ -42,5 +44,24 @@ func AutoMigrate() error {
 		_ = DB.Exec("DROP TABLE IF EXISTS role_permissions").Error
 		_ = DB.Exec("DROP TABLE IF EXISTS user_roles").Error
 	}
-	return DB.AutoMigrate(RegisteredModels()...)
+	if err := DB.AutoMigrate(RegisteredModels()...); err != nil {
+		return err
+	}
+	return backfillMediaLegacyURL()
+}
+
+func backfillMediaLegacyURL() error {
+	if !DB.Migrator().HasTable(&models.Media{}) || !DB.Migrator().HasColumn(&models.Media{}, "url") {
+		return nil
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.Media{}).
+			Where("url LIKE ?", "http://%").
+			Update("url", gorm.Expr("storage_key")).Error; err != nil {
+			return err
+		}
+		return tx.Model(&models.Media{}).
+			Where("url LIKE ?", "https://%").
+			Update("url", gorm.Expr("storage_key")).Error
+	})
 }

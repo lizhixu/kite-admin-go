@@ -35,6 +35,7 @@ func SetupRoutes(r *gin.Engine) {
 	msgCtrl := &controllers.MessageController{}
 	emailCtrl := &controllers.EmailConfigController{}
 	tmplCtrl := &controllers.EmailTemplateController{}
+	uploadCtrl := &controllers.UploadController{}
 
 	// 认证相关路由（无需认证）
 	auth := r.Group("/auth")
@@ -118,6 +119,10 @@ func SetupRoutes(r *gin.Engine) {
 		api.DELETE("/queue/:id/jobs", middleware.RequirePermission("DeleteQueue"), queueCtrl.ClearJobs)
 		api.POST("/queue/job/:jobId/kick", middleware.RequirePermission("KickQueueJob"), queueCtrl.KickJob)
 		api.DELETE("/queue/job/:jobId", middleware.RequirePermission("DeleteQueue"), queueCtrl.DeleteJob)
+
+		// 业务上传（登录用户均可使用，按 bizType 白名单限制）
+		api.GET("/upload/specs", uploadCtrl.Specs)
+		api.POST("/upload", middleware.RateLimit(30, time.Minute), uploadCtrl.Biz)
 
 		// 媒体库
 		api.POST("/media/upload", middleware.RateLimit(30, time.Minute), middleware.RequirePermission("UploadMedia"), mediaCtrl.Upload)

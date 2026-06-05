@@ -554,6 +554,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/loginlog/mine": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "首页使用：分页查询当前登录用户的登录成功日志，不需要 LoginLog 菜单权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "登录日志"
+                ],
+                "summary": "查询当前用户登录日志",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "pageNo",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/definitions/models.PageData"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "pageData": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/definitions/models.LoginLog"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/media/bulk/delete": {
             "post": {
                 "security": [
@@ -3351,6 +3419,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/storage/options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取媒体库/选择器使用的非敏感存储配置",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "存储配置"
+                ],
+                "summary": "获取媒体可用存储选项",
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/syslog/list": {
             "get": {
                 "security": [
@@ -4188,6 +4296,93 @@ const docTemplate = `{
                 }
             }
         },
+        "/upload": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "登录用户即可使用，按 bizType 白名单（avatar/rich-text/message-attach）限制；存储固定走系统默认；路径 {bizType}/YYYY/MM/DD",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "上传"
+                ],
+                "summary": "业务上传",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "业务类型 avatar/rich-text/message-attach",
+                        "name": "bizType",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "上传文件",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Media"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/upload/specs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "返回每个 bizType 的扩展名/mime/大小限制，供前端做客户端校验",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "上传"
+                ],
+                "summary": "获取业务上传白名单",
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/user": {
             "get": {
                 "security": [
@@ -4819,10 +5014,19 @@ const docTemplate = `{
         "controllers.jobRequest": {
             "type": "object",
             "properties": {
+                "delayUntil": {
+                    "type": "string"
+                },
                 "maxRetries": {
                     "type": "integer"
                 },
                 "payload": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "integer"
+                },
+                "uniqueKey": {
                     "type": "string"
                 }
             }
@@ -5263,6 +5467,13 @@ const docTemplate = `{
         "models.Media": {
             "type": "object",
             "properties": {
+                "accessUrl": {
+                    "type": "string"
+                },
+                "bizType": {
+                    "description": "空 = 媒体库素材；其它如 avatar/rich-text/message-attach 为业务上传",
+                    "type": "string"
+                },
                 "configId": {
                     "type": "integer"
                 },
@@ -5303,9 +5514,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "uploaderName": {
-                    "type": "string"
-                },
-                "url": {
                     "type": "string"
                 }
             }
@@ -5523,6 +5731,9 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
+                "delayUntil": {
+                    "type": "string"
+                },
                 "duration": {
                     "type": "integer"
                 },
@@ -5538,6 +5749,9 @@ const docTemplate = `{
                 "payload": {
                     "type": "string"
                 },
+                "priority": {
+                    "type": "integer"
+                },
                 "queueId": {
                     "type": "integer"
                 },
@@ -5551,6 +5765,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                },
+                "uniqueKey": {
                     "type": "string"
                 }
             }

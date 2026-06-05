@@ -58,17 +58,18 @@ func NewS3(cfg *models.StorageConfig) (Storage, error) {
 	}, nil
 }
 
-func (s *s3Storage) Put(ctx context.Context, key string, r io.Reader, size int64, mime string) (string, error) {
+func (s *s3Storage) Put(ctx context.Context, key string, r io.Reader, size int64, mime string) error {
 	if size <= 0 {
 		size = -1 // 让 minio-go 走分片，未知大小
 	}
 	_, err := s.client.PutObject(ctx, s.bucket, key, r, size, minio.PutObjectOptions{
 		ContentType: mime,
 	})
-	if err != nil {
-		return "", err
-	}
-	return s.buildURL(key), nil
+	return err
+}
+
+func (s *s3Storage) PublicURL(key string) string {
+	return s.buildURL(key)
 }
 
 func (s *s3Storage) Delete(ctx context.Context, key string) error {

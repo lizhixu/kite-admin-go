@@ -33,32 +33,38 @@ func NewLocal(cfg *models.StorageConfig) (Storage, error) {
 	return &localStorage{dir: dir, publicPrefix: prefix, customDomain: domain}, nil
 }
 
-func (l *localStorage) Put(_ context.Context, key string, r io.Reader, _ int64, _ string) (string, error) {
-	cleanKey := filepath.ToSlash(filepath.Clean(strings.TrimLeft(key, "/")))
-	if cleanKey == "." || strings.Contains(cleanKey, "..") {
-		return "", fmt.Errorf("invalid key: %s", key)
+func (l *localStorage) Put(_ context.Context, key string, r io.Reader, _ int64, _ string) error {
+	cleanKey, err := cleanLocalKey(key)
+	if err != nil {
+		return err
 	}
 	dst := filepath.Join(l.dir, cleanKey)
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return "", err
+		return err
 	}
 	f, err := os.Create(dst)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer f.Close()
-	if _, err := io.Copy(f, r); err != nil {
-		return "", err
+	_, err = io.Copy(f, r)
+	return err
+}
+
+func (l *localStorage) PublicURL(key string) string {
+	cleanKey, err := cleanLocalKey(key)
+	if err != nil {
+		return ""
 	}
 	if l.customDomain != "" {
-		return l.customDomain + "/" + cleanKey, nil
+		return l.customDomain + "/" + cleanKey
 	}
-	return l.publicPrefix + "/" + cleanKey, nil
+	return l.publicPrefix + "/" + cleanKey
 }
 
 func (l *localStorage) Delete(_ context.Context, key string) error {
-	cleanKey := filepath.ToSlash(filepath.Clean(strings.TrimLeft(key, "/")))
-	if cleanKey == "." || strings.Contains(cleanKey, "..") {
+	cleanKey, err := cleanLocalKey(key)
+	if err != nil {
 		return nil
 	}
 	dst := filepath.Join(l.dir, cleanKey)
@@ -69,8 +75,8 @@ func (l *localStorage) Delete(_ context.Context, key string) error {
 }
 
 func (l *localStorage) DeletePrefix(_ context.Context, prefix string) error {
-	cleanPrefix := filepath.ToSlash(filepath.Clean(strings.TrimLeft(prefix, "/")))
-	if cleanPrefix == "" || cleanPrefix == "." || strings.Contains(cleanPrefix, "..") {
+	cleanPrefix, err := cleanLocalKey(prefix)
+	if err != nil || cleanPrefix == "" {
 		return fmt.Errorf("invalid prefix: %s", prefix)
 	}
 	target := filepath.Join(l.dir, cleanPrefix)
@@ -78,4 +84,12 @@ func (l *localStorage) DeletePrefix(_ context.Context, prefix string) error {
 		return err
 	}
 	return nil
+}
+
+func cleanLocalKey(key string) (string, error) {
+	cleanKey := filepath.ToSlash(filepath.Clean(strings.TrimLeft(key, "/")))
+	if cleanKey == "." || strings.Contains(cleanKey, "..") {
+		return "", fmt.Errorf("invalid key: %s", key)
+	}
+	return cleanKey, nil
 }

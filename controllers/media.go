@@ -121,8 +121,7 @@ func (mc *MediaController) Upload(c *gin.Context) {
 	}
 
 	mime := detectMime(fileHeader)
-	url, err := store.Put(c, key, src, fileHeader.Size, mime)
-	if err != nil {
+	if err := store.Put(c, key, src, fileHeader.Size, mime); err != nil {
 		respondInternal(c, "store: "+err.Error())
 		return
 	}
@@ -143,7 +142,7 @@ func (mc *MediaController) Upload(c *gin.Context) {
 		ConfigID:     cfg.ID,
 		FolderID:     folderID,
 		FolderPath:   folderPath,
-		Url:          url,
+		LegacyURL:    key,
 		MimeType:     mime,
 		Ext:          ext,
 		Size:         fileHeader.Size,
@@ -155,6 +154,7 @@ func (mc *MediaController) Upload(c *gin.Context) {
 		respondInternal(c, err.Error())
 		return
 	}
+	setMediaAccessURL(&rec, store.PublicURL(rec.StorageKey))
 	respondOK(c, rec)
 }
 
@@ -187,7 +187,7 @@ func (mc *MediaController) GetPage(c *gin.Context) {
 	folderIDStr := c.Query("folderId")
 	scope := c.Query("scope") // mine(默认) / all
 
-	q := config.DB.Model(&models.Media{})
+	q := config.DB.Model(&models.Media{}).Where("biz_type = ? OR biz_type IS NULL", "")
 	if filename != "" {
 		q = q.Where("filename LIKE ?", "%"+filename+"%")
 	}
@@ -220,6 +220,7 @@ func (mc *MediaController) GetPage(c *gin.Context) {
 		respondInternal(c, err.Error())
 		return
 	}
+	hydrateMediaURLs(rows)
 	respondOK(c, gin.H{"pageData": rows, "total": total})
 }
 
@@ -987,7 +988,7 @@ func (mc *MediaController) TestConfig(c *gin.Context) {
 	probeKey := fmt.Sprintf(".probe/%d_%d.txt", time.Now().UnixNano(), cfg.ID)
 	start := time.Now()
 	body := []byte("ok")
-	if _, err := store.Put(c, probeKey, bytes.NewReader(body), int64(len(body)), "text/plain"); err != nil {
+	if err := store.Put(c, probeKey, bytes.NewReader(body), int64(len(body)), "text/plain"); err != nil {
 		respondInternal(c, "put probe: "+err.Error())
 		return
 	}
@@ -1030,6 +1031,49 @@ func resolveFolder(idStr string, configID uint) (*models.MediaFolder, error) {
 		return nil, fmt.Errorf("folder belongs to a different storage")
 	}
 	return &f, nil
+}
+
+func setMediaAccessURL(m *models.Media, accessURL string) {
+	m.AccessURL = accessURL
+	m.URL = accessURL
+}
+
+func hydrateMediaURLs(rows []models.Media) {
+	if len(rows) == 0 {
+		return
+	}
+	configIDs := make([]uint, 0, len(rows))
+	seen := make(map[uint]struct{})
+	for _, row := range rows {
+		if row.ConfigID == 0 {
+			continue
+		}
+		if _, ok := seen[row.ConfigID]; ok {
+			continue
+		}
+		seen[row.ConfigID] = struct{}{}
+		configIDs = append(configIDs, row.ConfigID)
+	}
+	if len(configIDs) == 0 {
+		return
+	}
+	var cfgs []models.StorageConfig
+	if err := config.DB.Where("id IN ?", configIDs).Find(&cfgs).Error; err != nil {
+		return
+	}
+	cfgMap := make(map[uint]models.StorageConfig, len(cfgs))
+	for _, cfg := range cfgs {
+		cfgMap[cfg.ID] = cfg
+	}
+	for i := range rows {
+		cfg, ok := cfgMap[rows[i].ConfigID]
+		if !ok {
+			continue
+		}
+		if url, err := storage.BuildPublicURL(&cfg, rows[i].StorageKey); err == nil {
+			setMediaAccessURL(&rows[i], url)
+		}
+	}
 }
 
 func deleteMedia(c *gin.Context, m *models.Media) error {

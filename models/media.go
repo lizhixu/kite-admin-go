@@ -9,9 +9,12 @@ type Media struct {
 	StorageKey   string    `gorm:"type:varchar(512);not null" json:"storageKey"`
 	StorageType  string    `gorm:"type:varchar(16);not null" json:"storageType"` // LOCAL / S3
 	ConfigID     uint      `gorm:"index" json:"configId"`
-	FolderID     uint      `gorm:"index;default:0" json:"folderId"`        // 0 = 该存储的根目录
-	FolderPath   string    `gorm:"type:varchar(1024)" json:"folderPath"`   // 冗余，便于前端展示与过滤
-	Url          string    `gorm:"type:varchar(1024);not null" json:"url"`
+	FolderID     uint      `gorm:"index;default:0" json:"folderId"`       // 0 = 该存储的根目录
+	FolderPath   string    `gorm:"type:varchar(1024)" json:"folderPath"`  // 冗余，便于前端展示与过滤
+	BizType      string    `gorm:"type:varchar(32);index" json:"bizType"` // 空 = 媒体库素材；其它如 avatar/rich-text/message-attach 为业务上传
+	LegacyURL    string    `gorm:"column:url;type:varchar(1024);not null" json:"-"`
+	AccessURL    string    `gorm:"-" json:"accessUrl"`
+	URL          string    `gorm:"-" json:"url,omitempty"`
 	MimeType     string    `gorm:"type:varchar(128)" json:"mimeType"`
 	Ext          string    `gorm:"type:varchar(16)" json:"ext"`
 	Size         int64     `json:"size"`
