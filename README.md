@@ -161,6 +161,9 @@ Authorization: Bearer <token>
 
 - `GET /user/detail` - 当前用户详情
 - `GET /user` - 用户列表
+- `GET /user/export` - 导出用户 XLSX
+- `GET /user/import/template` - 下载用户导入模板
+- `POST /user/import` - 导入用户 XLSX
 - `POST /user` - 新增用户
 - `PATCH /user/profile/:id` - 修改用户资料
 - `PATCH /user/:id` - 修改用户

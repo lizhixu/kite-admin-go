@@ -208,6 +208,8 @@ func defaultPermissions() []models.Permission {
 		{ID: 19, Name: "编辑用户", Code: "EditUser", Type: "BUTTON", ParentID: ptrUint(4), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},
 		{ID: 20, Name: "删除用户", Code: "DeleteUser", Type: "BUTTON", ParentID: ptrUint(4), Show: ptrBool(true), Enable: ptrBool(true), Order: 3},
 		{ID: 21, Name: "重置密码", Code: "ResetPassword", Type: "BUTTON", ParentID: ptrUint(4), Show: ptrBool(true), Enable: ptrBool(true), Order: 4},
+		{ID: 63, Name: "导入用户", Code: "ImportUser", Type: "BUTTON", ParentID: ptrUint(4), Show: ptrBool(true), Enable: ptrBool(true), Order: 5},
+		{ID: 64, Name: "导出用户", Code: "ExportUser", Type: "BUTTON", ParentID: ptrUint(4), Show: ptrBool(true), Enable: ptrBool(true), Order: 6},
 
 		// 任务管理（父容器：定时任务 + 队列管理）
 		{ID: 7, Name: "任务管理", Code: "TaskMgt", Type: "MENU", Icon: ptrStr("i-fe:clock"), Show: ptrBool(true), Enable: ptrBool(true), Order: 2},

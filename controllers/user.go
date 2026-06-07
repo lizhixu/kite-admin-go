@@ -4,10 +4,17 @@ import (
 	"backend/config"
 	"backend/models"
 	"backend/utils"
+	"bytes"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type UserController struct{}
@@ -15,13 +22,13 @@ type UserController struct{}
 type createUserRequest struct {
 	Username string  `json:"username" binding:"required"`
 	Password string  `json:"password" binding:"required"`
+	Email    string  `json:"email" binding:"required"`
 	Enable   *bool   `json:"enable"`
 	RoleIds  []uint  `json:"roleIds"`
 	NickName *string `json:"nickName"`
 	Gender   *int    `json:"gender"`
 	Avatar   *string `json:"avatar"`
 	Address  *string `json:"address"`
-	Email    *string `json:"email"`
 }
 
 type updateUserRequest struct {
@@ -46,6 +53,21 @@ type updateProfileRequest struct {
 type resetPasswordRequest struct {
 	Password string `json:"password" binding:"required"`
 }
+
+type userImportFailure struct {
+	Row    int    `json:"row"`
+	Reason string `json:"reason"`
+}
+
+type userImportResult struct {
+	Total    int                 `json:"total"`
+	Success  int                 `json:"success"`
+	Failed   int                 `json:"failed"`
+	Failures []userImportFailure `json:"failures"`
+}
+
+var userImportHeaders = []string{"用户名", "密码", "邮箱", "角色编码", "启用"}
+var userExportHeaders = []string{"ID", "用户名", "邮箱", "角色编码", "启用", "创建时间", "更新时间"}
 
 // GetDetail 获取当前用户详情
 // @Summary      获取当前用户详情
@@ -150,6 +172,107 @@ func (uc *UserController) GetList(c *gin.Context) {
 	respondOK(c, models.PageData{PageData: pageData, Total: total})
 }
 
+// Export 导出用户 xlsx
+func (uc *UserController) Export(c *gin.Context) {
+	username := c.Query("username")
+	query := config.DB.Model(&models.User{}).Preload("Roles").Preload("Profile")
+	if username != "" {
+		query = query.Where("username LIKE ?", "%"+username+"%")
+	}
+
+	var users []models.User
+	if err := query.Order("id asc").Find(&users).Error; err != nil {
+		respondInternal(c, "Failed to export users")
+		return
+	}
+
+	rows := make([][]string, 0, len(users))
+	for _, user := range users {
+		email := ""
+		if user.Profile != nil {
+			if user.Profile.Email != nil {
+				email = *user.Profile.Email
+			}
+		}
+		rows = append(rows, []string{
+			strconv.Itoa(int(user.ID)),
+			user.Username,
+			email,
+			joinRoleCodes(user.Roles),
+			formatBool(user.Enable),
+			formatTime(user.CreateTime),
+			formatTime(user.UpdateTime),
+		})
+	}
+
+	downloadXLSX(c, "users.xlsx", utils.XLSXSheet{
+		Name:    "用户列表",
+		Headers: userExportHeaders,
+		Rows:    rows,
+	})
+}
+
+// ImportTemplate 下载用户导入模板
+func (uc *UserController) ImportTemplate(c *gin.Context) {
+	downloadXLSX(c, "user_import_template.xlsx", utils.XLSXSheet{
+		Name:    "用户导入模板",
+		Headers: userImportHeaders,
+		Rows: [][]string{
+			{"demo", "123456", "demo@example.com", "ROLE_QA", "是"},
+		},
+	})
+}
+
+// Import 导入用户 xlsx
+func (uc *UserController) Import(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		respondBadRequest(c, "file is required")
+		return
+	}
+	if file.Size > 10*1024*1024 {
+		respondBadRequest(c, "file size must be <= 10MB")
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".xlsx") {
+		respondBadRequest(c, "only .xlsx file is supported")
+		return
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		respondBadRequest(c, "failed to open file")
+		return
+	}
+	defer src.Close()
+
+	data, err := io.ReadAll(src)
+	if err != nil {
+		respondBadRequest(c, "failed to read file")
+		return
+	}
+	rows, err := utils.ReadXLSX(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		respondBadRequest(c, "failed to parse xlsx")
+		return
+	}
+	if len(rows) < 2 {
+		respondBadRequest(c, "xlsx has no data rows")
+		return
+	}
+
+	headerMap := buildHeaderMap(rows[0])
+	for _, header := range []string{"用户名", "密码", "邮箱"} {
+		if _, ok := headerMap[header]; !ok {
+			respondBadRequest(c, "missing required header: "+header)
+			return
+		}
+	}
+
+	result := importUsers(rows[1:], headerMap)
+	respondOK(c, result)
+}
+
 // Create 创建用户
 // @Summary      创建用户
 // @Description  创建新用户，可同时设置资料和分配角色
@@ -166,6 +289,11 @@ func (uc *UserController) Create(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
+		return
+	}
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" {
+		respondBadRequest(c, "Email is required")
 		return
 	}
 
@@ -191,8 +319,8 @@ func (uc *UserController) Create(c *gin.Context) {
 	}
 
 	// 创建用户资料
-	if hasProfileFields(req.NickName, req.Gender, req.Avatar, req.Address, req.Email) {
-		profile := buildProfile(user.ID, req.NickName, req.Gender, req.Avatar, req.Address, req.Email)
+	if hasProfileFields(req.NickName, req.Gender, req.Avatar, req.Address, &req.Email) {
+		profile := buildProfile(user.ID, req.NickName, req.Gender, req.Avatar, req.Address, &req.Email)
 		if err := config.DB.Create(&profile).Error; err != nil {
 			log.Printf("Create user profile error: %v", err)
 		}
@@ -373,6 +501,214 @@ func (uc *UserController) ResetPassword(c *gin.Context) {
 	}
 
 	respondOK(c, true)
+}
+
+func importUsers(rows [][]string, headerMap map[string]int) userImportResult {
+	result := userImportResult{Total: len(rows)}
+	for idx, row := range rows {
+		rowNumber := idx + 2
+		if isEmptyRow(row) {
+			result.Total--
+			continue
+		}
+		if err := importUserRow(row, headerMap); err != nil {
+			result.Failures = append(result.Failures, userImportFailure{Row: rowNumber, Reason: err.Error()})
+			continue
+		}
+		result.Success++
+	}
+	result.Failed = len(result.Failures)
+	return result
+}
+
+func importUserRow(row []string, headerMap map[string]int) error {
+	username := getCell(row, headerMap, "用户名")
+	password := getCell(row, headerMap, "密码")
+	if username == "" {
+		return fmt.Errorf("用户名不能为空")
+	}
+	if password == "" {
+		return fmt.Errorf("密码不能为空")
+	}
+	email := getCell(row, headerMap, "邮箱")
+	if email == "" {
+		return fmt.Errorf("邮箱不能为空")
+	}
+
+	var count int64
+	if err := config.DB.Model(&models.User{}).Where("username = ?", username).Count(&count).Error; err != nil {
+		return fmt.Errorf("检查用户名失败")
+	}
+	if count > 0 {
+		return fmt.Errorf("用户名已存在")
+	}
+
+	enable, err := parseBoolDefault(getCell(row, headerMap, "启用"), true)
+	if err != nil {
+		return fmt.Errorf("启用字段格式错误")
+	}
+	roleCodes := splitCodes(getCell(row, headerMap, "角色编码"))
+
+	hashedPassword, err := utils.HashPassword(password)
+	if err != nil {
+		return fmt.Errorf("密码加密失败")
+	}
+
+	return config.DB.Transaction(func(tx *gorm.DB) error {
+		user := models.User{Username: username, Password: hashedPassword, Enable: enable}
+		if err := tx.Create(&user).Error; err != nil {
+			return fmt.Errorf("创建用户失败")
+		}
+
+		profile := buildProfile(user.ID, nil, nil, nil, nil, &email)
+		if err := tx.Create(&profile).Error; err != nil {
+			return fmt.Errorf("创建用户资料失败")
+		}
+
+		if len(roleCodes) > 0 {
+			var roles []models.Role
+			if err := tx.Where("code IN ?", roleCodes).Find(&roles).Error; err != nil {
+				return fmt.Errorf("查询角色失败")
+			}
+			if missingCodes := missingRoleCodes(roleCodes, roles); len(missingCodes) > 0 {
+				return fmt.Errorf("角色编码不存在：%s", strings.Join(missingCodes, ","))
+			}
+			if err := tx.Model(&user).Association("Roles").Append(&roles); err != nil {
+				return fmt.Errorf("分配角色失败")
+			}
+		}
+		return nil
+	})
+}
+
+func downloadXLSX(c *gin.Context, filename string, sheet utils.XLSXSheet) {
+	data, err := utils.NewXLSX(sheet)
+	if err != nil {
+		respondInternal(c, "Failed to generate xlsx")
+		return
+	}
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data)
+}
+
+func buildHeaderMap(headers []string) map[string]int {
+	result := make(map[string]int, len(headers))
+	for idx, header := range headers {
+		header = strings.TrimSpace(header)
+		if header != "" {
+			result[header] = idx
+		}
+	}
+	return result
+}
+
+func getCell(row []string, headerMap map[string]int, header string) string {
+	idx, ok := headerMap[header]
+	if !ok || idx >= len(row) {
+		return ""
+	}
+	return strings.TrimSpace(row[idx])
+}
+
+func isEmptyRow(row []string) bool {
+	for _, value := range row {
+		if strings.TrimSpace(value) != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func optionalString(value string) *string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func parseOptionalInt(value string) (*int, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		return nil, err
+	}
+	return &i, nil
+}
+
+func parseBoolDefault(value string, defaultValue bool) (bool, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return defaultValue, nil
+	}
+	switch value {
+	case "1", "true", "yes", "y", "是", "启用":
+		return true, nil
+	case "0", "false", "no", "n", "否", "禁用":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid bool")
+	}
+}
+
+func formatBool(value bool) string {
+	if value {
+		return "是"
+	}
+	return "否"
+}
+
+func formatTime(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.Format("2006-01-02 15:04:05")
+}
+
+func joinRoleCodes(roles []models.Role) string {
+	codes := make([]string, 0, len(roles))
+	for _, role := range roles {
+		codes = append(codes, role.Code)
+	}
+	return strings.Join(codes, ",")
+}
+
+func missingRoleCodes(codes []string, roles []models.Role) []string {
+	exists := make(map[string]struct{}, len(roles))
+	for _, role := range roles {
+		exists[role.Code] = struct{}{}
+	}
+
+	missing := make([]string, 0)
+	for _, code := range codes {
+		if _, ok := exists[code]; !ok {
+			missing = append(missing, code)
+		}
+	}
+	return missing
+}
+
+func splitCodes(value string) []string {
+	value = strings.NewReplacer("，", ",", ";", ",", "；", ",", "\n", ",").Replace(value)
+	parts := strings.Split(value, ",")
+	codes := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+	for _, part := range parts {
+		code := strings.TrimSpace(part)
+		if code == "" {
+			continue
+		}
+		if _, ok := seen[code]; ok {
+			continue
+		}
+		seen[code] = struct{}{}
+		codes = append(codes, code)
+	}
+	return codes
 }
 
 // buildProfileUpdates 从可选字段构建 profile 更新 map

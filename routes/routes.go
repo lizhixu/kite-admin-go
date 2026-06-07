@@ -57,6 +57,9 @@ func SetupRoutes(r *gin.Engine) {
 		// 用户相关
 		api.GET("/user/detail", userCtrl.GetDetail)
 		api.GET("/user", userCtrl.GetList)
+		api.GET("/user/export", middleware.RequirePermission("ExportUser"), userCtrl.Export)
+		api.GET("/user/import/template", middleware.RequirePermission("ImportUser"), userCtrl.ImportTemplate)
+		api.POST("/user/import", middleware.RequirePermission("ImportUser"), userCtrl.Import)
 		api.POST("/user", middleware.RequirePermission("AddUser"), userCtrl.Create)
 		api.DELETE("/user/:id", middleware.RequirePermission("DeleteUser"), userCtrl.Delete)
 		api.PATCH("/user/profile/:id", userCtrl.UpdateProfile)
