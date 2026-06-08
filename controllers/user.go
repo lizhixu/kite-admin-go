@@ -67,7 +67,7 @@ type userImportResult struct {
 }
 
 var userImportHeaders = []string{"用户名", "密码", "邮箱", "角色编码", "启用"}
-var userExportHeaders = []string{"ID", "用户名", "邮箱", "角色编码", "启用", "创建时间", "更新时间"}
+var userExportHeaders = []string{"ID", "用户名", "昵称", "性别", "邮箱", "地址", "角色编码", "启用", "创建时间", "更新时间"}
 
 // GetDetail 获取当前用户详情
 // @Summary      获取当前用户详情
@@ -188,16 +188,27 @@ func (uc *UserController) Export(c *gin.Context) {
 
 	rows := make([][]string, 0, len(users))
 	for _, user := range users {
+		nickName, gender, address := "", "", ""
 		email := ""
 		if user.Profile != nil {
+			nickName = user.Profile.NickName
+			if user.Profile.Gender != nil {
+				gender = formatGender(*user.Profile.Gender)
+			}
 			if user.Profile.Email != nil {
 				email = *user.Profile.Email
+			}
+			if user.Profile.Address != nil {
+				address = *user.Profile.Address
 			}
 		}
 		rows = append(rows, []string{
 			strconv.Itoa(int(user.ID)),
 			user.Username,
+			nickName,
+			gender,
 			email,
+			address,
 			joinRoleCodes(user.Roles),
 			formatBool(user.Enable),
 			formatTime(user.CreateTime),
@@ -667,6 +678,17 @@ func formatTime(value time.Time) string {
 		return ""
 	}
 	return value.Format("2006-01-02 15:04:05")
+}
+
+func formatGender(value int) string {
+	switch value {
+	case 1:
+		return "男"
+	case 2:
+		return "女"
+	default:
+		return strconv.Itoa(value)
+	}
 }
 
 func joinRoleCodes(roles []models.Role) string {
