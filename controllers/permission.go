@@ -4,6 +4,7 @@ import (
 	"backend/config"
 	"backend/models"
 	"log"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -123,15 +124,20 @@ func (pc *PermissionController) ValidateMenuPath(c *gin.Context) {
 		return
 	}
 
-	var count int64
-	if err := config.DB.Model(&models.Permission{}).
-		Where("type = ? AND path = ? AND (enable = ? OR enable IS NULL)", "MENU", menuPath, true).
-		Count(&count).Error; err != nil {
-		log.Printf("ValidateMenuPath count error: %v", err)
+	var menus []models.Permission
+	if err := config.DB.Where("type = ? AND path <> ? AND (enable = ? OR enable IS NULL)", "MENU", "", true).
+		Find(&menus).Error; err != nil {
+		log.Printf("ValidateMenuPath find error: %v", err)
 		respondOK(c, false)
 		return
 	}
-	respondOK(c, count > 0)
+	for _, menu := range menus {
+		if menu.Path != nil && menuPathMatches(*menu.Path, menuPath) {
+			respondOK(c, true)
+			return
+		}
+	}
+	respondOK(c, false)
 }
 
 // GetTree 获取完整权限树
@@ -361,4 +367,26 @@ func (pc *PermissionController) buildAllowedTree(all []models.Permission, parent
 		}
 	}
 	return res
+}
+
+func menuPathMatches(pattern, requestPath string) bool {
+	pattern = strings.Trim(pattern, "/")
+	requestPath = strings.Trim(requestPath, "/")
+	if pattern == requestPath {
+		return true
+	}
+	patternParts := strings.Split(pattern, "/")
+	requestParts := strings.Split(requestPath, "/")
+	if len(patternParts) != len(requestParts) {
+		return false
+	}
+	for i := range patternParts {
+		if strings.HasPrefix(patternParts[i], ":") {
+			continue
+		}
+		if patternParts[i] != requestParts[i] {
+			return false
+		}
+	}
+	return true
 }

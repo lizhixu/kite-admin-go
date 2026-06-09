@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type MessageController struct{}
@@ -93,7 +94,10 @@ func (mc *MessageController) Create(c *gin.Context) {
 	switch req.TargetType {
 	case "ALL":
 		var users []models.User
-		config.DB.Where("enable = ?", true).Find(&users)
+		if err := config.DB.Where("enable = ?", true).Find(&users).Error; err != nil {
+			respondInternal(c, "Failed to query recipients")
+			return
+		}
 		for _, u := range users {
 			userIDs = append(userIDs, u.ID)
 		}
@@ -104,10 +108,13 @@ func (mc *MessageController) Create(c *gin.Context) {
 		}
 		// Find all users that belong to any of the specified roles
 		var users []models.User
-		config.DB.Joins("JOIN user_roles ON user_roles.user_id = users.id").
+		if err := config.DB.Joins("JOIN user_roles ON user_roles.user_id = users.id").
 			Where("user_roles.role_id IN ? AND users.enable = ?", req.RoleIDs, true).
 			Distinct("users.id").
-			Find(&users)
+			Find(&users).Error; err != nil {
+			respondInternal(c, "Failed to query recipients")
+			return
+		}
 		for _, u := range users {
 			userIDs = append(userIDs, u.ID)
 		}
@@ -117,7 +124,10 @@ func (mc *MessageController) Create(c *gin.Context) {
 			return
 		}
 		var users []models.User
-		config.DB.Where("id IN ? AND enable = ?", req.UserIDs, true).Find(&users)
+		if err := config.DB.Where("id IN ? AND enable = ?", req.UserIDs, true).Find(&users).Error; err != nil {
+			respondInternal(c, "Failed to query recipients")
+			return
+		}
 		for _, u := range users {
 			userIDs = append(userIDs, u.ID)
 		}
@@ -145,21 +155,20 @@ func (mc *MessageController) Create(c *gin.Context) {
 		Status:      "SENT",
 	}
 
-	if err := config.DB.Create(&msg).Error; err != nil {
+	if err := config.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&msg).Error; err != nil {
+			return err
+		}
+		recipients := make([]models.MessageRecipient, 0, len(userIDs))
+		for _, uid := range userIDs {
+			recipients = append(recipients, models.MessageRecipient{
+				MessageID: msg.ID,
+				UserID:    uid,
+			})
+		}
+		return tx.CreateInBatches(recipients, 100).Error
+	}); err != nil {
 		respondInternal(c, "Failed to create message")
-		return
-	}
-
-	// Create recipients
-	recipients := make([]models.MessageRecipient, 0, len(userIDs))
-	for _, uid := range userIDs {
-		recipients = append(recipients, models.MessageRecipient{
-			MessageID: msg.ID,
-			UserID:    uid,
-		})
-	}
-	if err := config.DB.CreateInBatches(recipients, 100).Error; err != nil {
-		respondInternal(c, "Failed to create recipients")
 		return
 	}
 
