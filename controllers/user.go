@@ -47,7 +47,7 @@ type updateProfileRequest struct {
 	Gender   *int    `json:"gender"`
 	Avatar   *string `json:"avatar"`
 	Address  *string `json:"address"`
-	Email    *string `json:"email"`
+	Email    string  `json:"email" binding:"required"`
 }
 
 type resetPasswordRequest struct {
@@ -445,6 +445,11 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" {
+		respondBadRequest(c, "邮箱不能为空")
+		return
+	}
 
 	var user models.User
 	if err := config.DB.Preload("Profile").First(&user, currentUserID).Error; err != nil {
@@ -452,7 +457,7 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	if err := saveOrCreateProfile(&user, req.NickName, req.Gender, req.Avatar, req.Address, req.Email); err != nil {
+	if err := saveOrCreateProfile(&user, req.NickName, req.Gender, req.Avatar, req.Address, &req.Email); err != nil {
 		respondInternal(c, "Failed to save profile")
 		return
 	}
