@@ -43,8 +43,36 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("userID", claims.UserID)
-		c.Set("username", claims.Username)
+		var user models.User
+		if err := config.DB.Preload("Roles").First(&user, claims.UserID).Error; err != nil || !user.Enable {
+			c.JSON(http.StatusUnauthorized, models.Response{
+				Code:    401,
+				Message: "Invalid token",
+			})
+			c.Abort()
+			return
+		}
+
+		if claims.RoleCode != "" {
+			hasRole := false
+			for _, role := range user.Roles {
+				if role.Code == claims.RoleCode && role.Enable {
+					hasRole = true
+					break
+				}
+			}
+			if !hasRole {
+				c.JSON(http.StatusForbidden, models.Response{
+					Code:    403,
+					Message: "Permission denied",
+				})
+				c.Abort()
+				return
+			}
+		}
+
+		c.Set("userID", user.ID)
+		c.Set("username", user.Username)
 		c.Set("roleCode", claims.RoleCode)
 		c.Next()
 	}

@@ -1087,9 +1087,6 @@ func deleteMedia(c *gin.Context, m *models.Media) error {
 }
 
 func detectMime(fh *multipart.FileHeader) string {
-	if t := fh.Header.Get("Content-Type"); t != "" {
-		return t
-	}
 	f, err := fh.Open()
 	if err != nil {
 		return "application/octet-stream"

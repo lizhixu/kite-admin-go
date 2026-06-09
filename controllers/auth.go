@@ -47,6 +47,11 @@ type LoginRequest struct {
 	Captcha  string `json:"captcha" binding:"required"`
 }
 
+type changePasswordRequest struct {
+	OldPassword string `json:"oldPassword" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required"`
+}
+
 // Login 用户登录
 // @Summary      用户登录
 // @Description  通过用户名、密码和验证码登录系统
@@ -83,6 +88,10 @@ func (ac *AuthController) Login(c *gin.Context) {
 		respondErr(c, http.StatusUnauthorized, 10004, "账号或密码错误")
 		return
 	}
+	if !user.Enable {
+		respondErr(c, http.StatusUnauthorized, 10004, "账号已停用")
+		return
+	}
 
 	if !utils.CheckPassword(req.Password, user.Password) {
 		respondErr(c, http.StatusUnauthorized, 10004, "账号或密码错误")
@@ -90,8 +99,11 @@ func (ac *AuthController) Login(c *gin.Context) {
 	}
 
 	roleCode := ""
-	if len(user.Roles) > 0 {
-		roleCode = user.Roles[0].Code
+	for _, role := range user.Roles {
+		if role.Enable {
+			roleCode = role.Code
+			break
+		}
 	}
 
 	cfg := config.LoadConfig()
@@ -103,6 +115,52 @@ func (ac *AuthController) Login(c *gin.Context) {
 
 	recordLoginLog(user.ID, user.Username, ip, userAgent)
 	respondOK(c, gin.H{"accessToken": token})
+}
+
+// ChangePassword 修改当前登录用户密码
+// @Summary      修改密码
+// @Description  当前登录用户通过旧密码修改自己的密码
+// @Tags         认证管理
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body     changePasswordRequest true "密码信息"
+// @Success      200  {object} models.Response "成功"
+// @Failure      400  {object} models.Response "请求参数错误"
+// @Failure      401  {object} models.Response "旧密码错误"
+// @Router       /auth/password [post]
+func (ac *AuthController) ChangePassword(c *gin.Context) {
+	var req changePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	if req.NewPassword == req.OldPassword {
+		respondBadRequest(c, "新密码不能与旧密码相同")
+		return
+	}
+
+	userID := c.GetUint("userID")
+	var user models.User
+	if err := config.DB.First(&user, userID).Error; err != nil {
+		respondErr(c, http.StatusUnauthorized, http.StatusUnauthorized, "用户不存在")
+		return
+	}
+	if !utils.CheckPassword(req.OldPassword, user.Password) {
+		respondErr(c, http.StatusUnauthorized, http.StatusUnauthorized, "旧密码错误")
+		return
+	}
+
+	hashedPassword, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		respondInternal(c, "Failed to hash password")
+		return
+	}
+	if err := config.DB.Model(&user).Update("password", hashedPassword).Error; err != nil {
+		respondInternal(c, "Failed to change password")
+		return
+	}
+	respondOK(c, true)
 }
 
 // GetCaptcha 获取验证码
@@ -149,7 +207,7 @@ func (ac *AuthController) SwitchRole(c *gin.Context) {
 	}
 	allowed := false
 	for _, r := range user.Roles {
-		if r.Code == roleCode {
+		if r.Code == roleCode && r.Enable {
 			allowed = true
 			break
 		}

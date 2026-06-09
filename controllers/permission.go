@@ -107,6 +107,33 @@ func (pc *PermissionController) GetMenuTree(c *gin.Context) {
 	respondOK(c, tree)
 }
 
+// ValidateMenuPath 校验菜单路径是否存在，用于前端区分 403/404
+// @Summary      校验菜单路径
+// @Description  判断系统中是否存在指定启用菜单路径
+// @Tags         权限管理
+// @Security     BearerAuth
+// @Produce      json
+// @Param        path query    string true "菜单路径"
+// @Success      200  {object} models.Response{data=bool} "成功"
+// @Router       /permission/menu/validate [get]
+func (pc *PermissionController) ValidateMenuPath(c *gin.Context) {
+	menuPath := c.Query("path")
+	if menuPath == "" {
+		respondOK(c, false)
+		return
+	}
+
+	var count int64
+	if err := config.DB.Model(&models.Permission{}).
+		Where("type = ? AND path = ? AND (enable = ? OR enable IS NULL)", "MENU", menuPath, true).
+		Count(&count).Error; err != nil {
+		log.Printf("ValidateMenuPath count error: %v", err)
+		respondOK(c, false)
+		return
+	}
+	respondOK(c, count > 0)
+}
+
 // GetTree 获取完整权限树
 // @Summary      获取完整权限树
 // @Description  获取所有权限的完整树形结构

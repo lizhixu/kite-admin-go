@@ -4,6 +4,7 @@ import (
 	"backend/config"
 	"backend/models"
 	"backend/scheduler"
+	"os"
 	"strconv"
 	"time"
 
@@ -88,6 +89,10 @@ func (tc *TaskController) Create(c *gin.Context) {
 		respondBadRequest(c, "invalid cron spec: "+err.Error())
 		return
 	}
+	if !shellTasksAllowed(req.Type) {
+		respondBadRequest(c, "SHELL tasks are disabled")
+		return
+	}
 
 	enabled := true
 	if req.Enabled != nil {
@@ -134,6 +139,10 @@ func (tc *TaskController) Update(c *gin.Context) {
 	}
 	if err := scheduler.ValidateSpec(req.Spec); err != nil {
 		respondBadRequest(c, "invalid cron spec: "+err.Error())
+		return
+	}
+	if !shellTasksAllowed(req.Type) {
+		respondBadRequest(c, "SHELL tasks are disabled")
 		return
 	}
 
@@ -209,6 +218,10 @@ func (tc *TaskController) Toggle(c *gin.Context) {
 		return
 	}
 	task.Enabled = !task.Enabled
+	if task.Enabled && !shellTasksAllowed(task.Type) {
+		respondBadRequest(c, "SHELL tasks are disabled")
+		return
+	}
 	if err := config.DB.Save(&task).Error; err != nil {
 		respondInternal(c, err.Error())
 		return
@@ -378,6 +391,10 @@ type bulkToggleRequest struct {
 	Enabled bool   `json:"enabled"`
 }
 
+func shellTasksAllowed(taskType string) bool {
+	return taskType != scheduler.TypeShell || os.Getenv("ALLOW_SHELL_TASKS") == "true"
+}
+
 // BulkDelete 批量删除任务
 // @Summary      批量删除任务
 // @Description  批量删除指定的定时任务
@@ -422,15 +439,23 @@ func (tc *TaskController) BulkToggle(c *gin.Context) {
 		respondBadRequest(c, "ids required")
 		return
 	}
+	var tasks []models.Task
+	config.DB.Where("id IN ?", req.IDs).Find(&tasks)
+	if req.Enabled {
+		for i := range tasks {
+			if !shellTasksAllowed(tasks[i].Type) {
+				respondBadRequest(c, "SHELL tasks are disabled")
+				return
+			}
+		}
+	}
 	if err := config.DB.Model(&models.Task{}).Where("id IN ?", req.IDs).Update("enabled", req.Enabled).Error; err != nil {
 		respondInternal(c, err.Error())
 		return
 	}
-
-	var tasks []models.Task
-	config.DB.Where("id IN ?", req.IDs).Find(&tasks)
 	for i := range tasks {
 		if req.Enabled {
+			tasks[i].Enabled = true
 			_ = scheduler.Default().Add(&tasks[i])
 		} else {
 			scheduler.Default().Remove(tasks[i].ID)

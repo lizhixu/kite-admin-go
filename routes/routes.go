@@ -53,6 +53,7 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		// 认证相关
 		api.POST("/auth/current-role/switch/:roleCode", authCtrl.SwitchRole)
+		api.POST("/auth/password", authCtrl.ChangePassword)
 
 		// 用户相关
 		api.GET("/user/detail", userCtrl.GetDetail)
@@ -78,6 +79,7 @@ func SetupRoutes(r *gin.Engine) {
 		// 权限相关
 		api.GET("/role/permissions/tree", permCtrl.GetRolePermissionsTree)
 		api.GET("/permission/menu/tree", permCtrl.GetMenuTree)
+		api.GET("/permission/menu/validate", permCtrl.ValidateMenuPath)
 		api.GET("/permission/tree", permCtrl.GetTree)
 		api.GET("/permission/button/:parentId", permCtrl.GetButtonsByParentID)
 		api.POST("/permission", middleware.RequirePermission("AddResource"), permCtrl.Create)

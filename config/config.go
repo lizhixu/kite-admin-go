@@ -12,9 +12,9 @@ import (
 )
 
 type Config struct {
-	Server     ServerConfig
-	Database   DatabaseConfig
-	JWT        JWTConfig
+	Server      ServerConfig
+	Database    DatabaseConfig
+	JWT         JWTConfig
 	CORSOrigins []string
 }
 
@@ -57,6 +57,7 @@ func LoadConfig() *Config {
 		dbName := getEnv("DB_NAME", "admin_system")
 		jwtSecret := getEnv("JWT_SECRET", "your-secret-key")
 		jwtExpireHours := getEnvAsInt("JWT_EXPIRE_HOURS", 24)
+		appEnv := getEnv("APP_ENV", "development")
 
 		// 弱凭据警告
 		if jwtSecret == "your-secret-key" {
@@ -73,6 +74,16 @@ func LoadConfig() *Config {
 			o = strings.TrimSpace(o)
 			if o != "" {
 				corsOrigins = append(corsOrigins, o)
+			}
+		}
+		if appEnv == "production" {
+			if jwtSecret == "your-secret-key" {
+				log.Fatal("JWT_SECRET must be set in production")
+			}
+			for _, origin := range corsOrigins {
+				if origin == "*" {
+					log.Fatal("CORS_ORIGINS must not contain * in production")
+				}
 			}
 		}
 

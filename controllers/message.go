@@ -88,6 +88,46 @@ func (mc *MessageController) Create(c *gin.Context) {
 	userID := c.GetUint("userID")
 	username := c.GetString("username")
 
+	// Determine target users
+	var userIDs []uint
+	switch req.TargetType {
+	case "ALL":
+		var users []models.User
+		config.DB.Where("enable = ?", true).Find(&users)
+		for _, u := range users {
+			userIDs = append(userIDs, u.ID)
+		}
+	case "ROLE":
+		if len(req.RoleIDs) == 0 {
+			respondBadRequest(c, "roleIds required")
+			return
+		}
+		// Find all users that belong to any of the specified roles
+		var users []models.User
+		config.DB.Joins("JOIN user_roles ON user_roles.user_id = users.id").
+			Where("user_roles.role_id IN ? AND users.enable = ?", req.RoleIDs, true).
+			Distinct("users.id").
+			Find(&users)
+		for _, u := range users {
+			userIDs = append(userIDs, u.ID)
+		}
+	default:
+		if len(req.UserIDs) == 0 {
+			respondBadRequest(c, "userIds required")
+			return
+		}
+		var users []models.User
+		config.DB.Where("id IN ? AND enable = ?", req.UserIDs, true).Find(&users)
+		for _, u := range users {
+			userIDs = append(userIDs, u.ID)
+		}
+	}
+	userIDs = uniqueUintIDs(userIDs)
+	if len(userIDs) == 0 {
+		respondBadRequest(c, "no recipients matched")
+		return
+	}
+
 	targetRolesJSON := ""
 	if len(req.RoleIDs) > 0 {
 		b, _ := json.Marshal(req.RoleIDs)
@@ -110,56 +150,34 @@ func (mc *MessageController) Create(c *gin.Context) {
 		return
 	}
 
-	// Determine target users
-	var userIDs []uint
-	switch req.TargetType {
-	case "ALL":
-		var users []models.User
-		config.DB.Where("enable = ?", true).Find(&users)
-		for _, u := range users {
-			userIDs = append(userIDs, u.ID)
-		}
-	case "ROLE":
-		// Find all users that belong to any of the specified roles
-		var users []models.User
-		config.DB.Joins("JOIN user_roles ON user_roles.user_id = users.id").
-			Where("user_roles.role_id IN ? AND users.enable = ?", req.RoleIDs, true).
-			Distinct("users.id").
-			Find(&users)
-		for _, u := range users {
-			userIDs = append(userIDs, u.ID)
-		}
-	default:
-		userIDs = req.UserIDs
+	// Create recipients
+	recipients := make([]models.MessageRecipient, 0, len(userIDs))
+	for _, uid := range userIDs {
+		recipients = append(recipients, models.MessageRecipient{
+			MessageID: msg.ID,
+			UserID:    uid,
+		})
+	}
+	if err := config.DB.CreateInBatches(recipients, 100).Error; err != nil {
+		respondInternal(c, "Failed to create recipients")
+		return
 	}
 
-	// Create recipients
-	if len(userIDs) > 0 {
-		recipients := make([]models.MessageRecipient, 0, len(userIDs))
-		for _, uid := range userIDs {
-			recipients = append(recipients, models.MessageRecipient{
-				MessageID: msg.ID,
-				UserID:    uid,
-			})
-		}
-		config.DB.CreateInBatches(recipients, 100)
+	// Notify via SSE
+	data, _ := json.Marshal(gson{"messageId": msg.ID, "title": msg.Title, "type": msg.Type})
+	sse.Default().NotifyUsers(userIDs, string(data))
 
-		// Notify via SSE
-		data, _ := json.Marshal(gson{"messageId": msg.ID, "title": msg.Title, "type": msg.Type})
-		sse.Default().NotifyUsers(userIDs, string(data))
-
-		// Push one email job per recipient (batched)
-		items := make([]queue.BulkPushItem, 0, len(userIDs))
-		for _, uid := range userIDs {
-			payload, _ := json.Marshal(emailPayload{MessageID: msg.ID, UserID: uid})
-			items = append(items, queue.BulkPushItem{
-				Payload: string(payload),
-				Opts:    queue.PushOpts{UniqueKey: fmt.Sprintf("message.email:%d:%d", msg.ID, uid)},
-			})
-		}
-		if _, err := queue.BulkPush(context.Background(), "message.email", items); err != nil {
-			log.Printf("queue bulk push message.email msg=%d: %v", msg.ID, err)
-		}
+	// Push one email job per recipient (batched)
+	items := make([]queue.BulkPushItem, 0, len(userIDs))
+	for _, uid := range userIDs {
+		payload, _ := json.Marshal(emailPayload{MessageID: msg.ID, UserID: uid})
+		items = append(items, queue.BulkPushItem{
+			Payload: string(payload),
+			Opts:    queue.PushOpts{UniqueKey: fmt.Sprintf("message.email:%d:%d", msg.ID, uid)},
+		})
+	}
+	if _, err := queue.BulkPush(context.Background(), "message.email", items); err != nil {
+		log.Printf("queue bulk push message.email msg=%d: %v", msg.ID, err)
 	}
 
 	respondOK(c, msg)
@@ -401,6 +419,22 @@ func (mc *MessageController) SSE(c *gin.Context) {
 			c.Writer.Flush()
 		}
 	}
+}
+
+func uniqueUintIDs(ids []uint) []uint {
+	unique := make([]uint, 0, len(ids))
+	seen := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	return unique
 }
 
 // Helper types

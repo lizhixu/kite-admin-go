@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -180,6 +181,11 @@ func runHTTP(ctx context.Context, task models.Task, rec *stepRecorder) (string, 
 }
 
 func runShell(ctx context.Context, task models.Task, rec *stepRecorder) (string, error) {
+	if os.Getenv("ALLOW_SHELL_TASKS") != "true" {
+		rec.add(lvError, "SHELL 类型任务未启用")
+		return "", fmt.Errorf("shell tasks are disabled")
+	}
+
 	// 安全检查：拒绝包含危险字符的命令，防止命令注入
 	dangerousChars := []string{"|", "&", ";", "`", "$(", ">", "<", "\n", "\r"}
 	for _, d := range dangerousChars {
